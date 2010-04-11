@@ -24,6 +24,12 @@ import java.util.Stack;
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 
+import org.eclipse.swt.*;
+import org.eclipse.swt.graphics.*;
+import org.eclipse.swt.layout.*;
+import org.eclipse.swt.widgets.*;
+
+
 public class BubbleSpinnerWinner {
 	
 	public static final int MAX_CONNECTED_SIZE = 600;
@@ -47,10 +53,12 @@ public class BubbleSpinnerWinner {
 	
 	@SuppressWarnings("unchecked")
 	public static void main(String[] args){
+		
+		DrawDisplay();
+		
 		BufferedImage screen_cap = null;
 		try {
 			Robot robot = new Robot();
-			Thread.sleep(5000);
 			screen_cap = new Robot().createScreenCapture(
 			           new Rectangle(Toolkit.getDefaultToolkit().getScreenSize()) );
 			ImageIO.write( screen_cap, "bmp" , new File ( "screen.bmp" ));
@@ -64,10 +72,7 @@ public class BubbleSpinnerWinner {
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		} 
 		
 		
 		
@@ -175,6 +180,57 @@ public class BubbleSpinnerWinner {
 		
 		
 		System.out.println("Done");
+	}
+	
+	public static void DrawDisplay(){
+		Display display = new Display();
+		//org.eclipse.swt.graphics.Image image = display.getSystemImage(SWT.ICON_QUESTION);
+		Shell shell = new Shell(display);
+		shell.setLayout (new GridLayout());
+		
+		final Label output_label = new Label (shell, SWT.CHECK);
+		
+		final Text horizontal_enter = new Text (shell, SWT.BORDER);
+		horizontal_enter.setBounds (10, 10, 200, 200);
+		
+		final Text vertical_enter = new Text (shell, SWT.BORDER);
+		vertical_enter.setBounds (10, 10, 200, 200);
+		final Button enter_button = new Button(shell, SWT.PUSH);
+		enter_button.setText("Enter Top Left Spinner");
+		
+		
+		enter_button.addListener(SWT.Selection, new Listener(){
+			@Override
+			public void handleEvent(Event e) {
+				String horizontal_pos_string = horizontal_enter.getText();
+				String vertical_pos_string = vertical_enter.getText();
+				output_label.setSize(300, 12);
+				output_label.setText(horizontal_pos_string+ " " + vertical_pos_string);
+				
+				try {
+					Robot robot = new Robot();
+					Image screen_cap = new Robot().createScreenCapture(
+					           new Rectangle(Toolkit.getDefaultToolkit().getScreenSize()) );
+					
+					
+				} catch (AWTException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				
+				
+			}
+			
+		});
+		
+		
+		
+		shell.setSize(300, 300);
+		shell.open();
+		while (!shell.isDisposed ()) {
+			if (!display.readAndDispatch ()) display.sleep ();
+		}
+		display.dispose ();
 	}
 	
 	public static void FireBubbleHit(BufferedImage image, int startx, int starty, int targetx, int targety, int left_bound, int right_bound, int bottom_bound){
