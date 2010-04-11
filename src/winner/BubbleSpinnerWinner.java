@@ -1,6 +1,16 @@
 package winner;
 
+import java.awt.AWTException;
+import java.awt.HeadlessException;
 import java.awt.Image;
+import java.awt.Rectangle;
+import java.awt.Robot;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
+import java.awt.datatransfer.UnsupportedFlavorException;
+import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageConsumer;
 import java.io.File;
@@ -37,6 +47,31 @@ public class BubbleSpinnerWinner {
 	
 	@SuppressWarnings("unchecked")
 	public static void main(String[] args){
+		BufferedImage screen_cap = null;
+		try {
+			Robot robot = new Robot();
+			Thread.sleep(5000);
+			screen_cap = new Robot().createScreenCapture(
+			           new Rectangle(Toolkit.getDefaultToolkit().getScreenSize()) );
+			ImageIO.write( screen_cap, "bmp" , new File ( "screen.bmp" ));
+			
+		} catch (HeadlessException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		} catch (AWTException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		
+		
 		BufferedImage image = null;
 		BufferedImage orig_image = null;
 		File file = new File("spinner.bmp");
@@ -129,7 +164,7 @@ public class BubbleSpinnerWinner {
 		int right_side = FindRightBound(image);
 		int bottom_side = FindBottomBound(image);
 		try {
-			ImageIO.write( image, "bmp" , new File ( "output.bmp" ) /* target */ );
+			ImageIO.write( image, "bmp" , new File ( "output.bmp" ));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
