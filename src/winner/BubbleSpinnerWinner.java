@@ -6,6 +6,7 @@ import java.awt.image.ImageConsumer;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.Stack;
@@ -21,11 +22,20 @@ public class BubbleSpinnerWinner {
 	public static final int MAX_MOMENT_OVER_SIZE = 100;
 	public static final int MIN_MOMENT = 150;
 	
-	public static final int BOTTOM_LEFT_CENTROID_FILTER_HORIZ = 500;
+	public static final int BOTTOM_LEFT_CENTROID_FILTER_HORIZ = 490;
 	public static final int BOTTOM_LEFT_CENTROID_FILTER_VERT = 170;
 	
 	public static final int NODE_MAX_DISTANCE_CUTOFF = 800;
 	
+	public static final int SHOOTER_Y_OFFSET = 4;
+	
+	public static final int LEFT_SIDE_OFFSET = 10;
+	public static final int RIGHT_SIDE_OFFSET = 491;
+	public static final int BOTTOM_SIDE_OFFSET = 531;
+	
+	public static final double BALL_RADIUS = 10d;
+	
+	@SuppressWarnings("unchecked")
 	public static void main(String[] args){
 		BufferedImage image = null;
 		BufferedImage orig_image = null;
@@ -38,14 +48,15 @@ public class BubbleSpinnerWinner {
 			e.printStackTrace();
 		}
 		
+		
+		
+		
 		//lets find connected components
 		int [] connected_component_count_array = {0};
+		int [] shooter_coord = {0,0};
 		int [][] connected_components = GetConnectedComponents(image, connected_component_count_array);
 		
 		System.out.println("We have :"+ connected_component_count_array[0] + " connected components");
-
-		
-		
 
 		
 		//filter based on size
@@ -68,6 +79,9 @@ public class BubbleSpinnerWinner {
 		//filter based on non circular objects by determining if component is a circle
 		CircleComponentFilter(connected_components, image, connected_component_count_array);
 		
+		//filter out bottom left components, and dump it to zero
+		FilterBottomLeftComponents(image, connected_components);
+		
 		//color stuff black according to component number
 		ColorComponentsFilter(connected_components, image);
 		
@@ -84,9 +98,36 @@ public class BubbleSpinnerWinner {
 		
 		PaintCentroids(connected_components, image, connected_component_count_array, centroid_X, centroid_Y);
 		
-		ConstructElementGraph(image, centroid_X, centroid_Y);
+		ArrayList<BubbleGraphNode> bubble_graph = ConstructElementGraph(image, centroid_X, centroid_Y);
+		
+		//now we will rank in order which nodes have the least connectivity
+		ArrayList<BubbleGraphNode> bubble_graph_sorted = (ArrayList<BubbleGraphNode>) bubble_graph.clone();
+		
+		SortBubbleGraph(bubble_graph_sorted);
 		
 		
+		
+		FindFireLocation(image, bubble_graph_sorted, shooter_coord);
+		int shooter_x = shooter_coord[0];
+		int shooter_y = shooter_coord[1];
+		
+		RayTrace(image, shooter_x, shooter_y, 10, 300);
+		RayTrace(image, shooter_x, shooter_y, 200, 300);
+		RayTrace(image, shooter_x, shooter_y, 400, 300);
+		
+				
+		//So now we will filter out any unconnected nodes
+		RemoveUnconnectedNodes(bubble_graph_sorted);
+		
+		//debug
+		System.out.println("Now we have " + bubble_graph_sorted.size() + " nodes");
+		for(BubbleGraphNode node : bubble_graph_sorted){
+			//System.out.println(node.GetNeighbors().size());
+		}
+		
+		int left_side = FindLeftBound(image);
+		int right_side = FindRightBound(image);
+		int bottom_side = FindBottomBound(image);
 		try {
 			ImageIO.write( image, "bmp" , new File ( "output.bmp" ) /* target */ );
 		} catch (IOException e) {
@@ -95,11 +136,121 @@ public class BubbleSpinnerWinner {
 		
 		
 		
+		
+		
+		
 		System.out.println("Done");
 	}
 	
+	public static void FireBubbleHit(BufferedImage image, int startx, int starty, int targetx, int targety, int left_bound, int right_bound, int bottom_bound){
+		
+	}
+	
+	public static void RayTrace(BufferedImage image, int startx, int starty, int endx, int endy){
+		int delta_x = (endx - startx);
+		int delta_y = (endy - starty);
+		double angle = Math.atan2((double)(delta_y), (double)delta_x);
+		
+		double up = (Math.cos(angle)*BALL_RADIUS);
+		double right = (Math.sin(angle)*BALL_RADIUS);
+		
+		//double complementary_angle = Math.PI/2 - angle;
+		
+		//double hypoteneus = BALL_RADIUS/Math.sin(complementary_angle);
+		
+		
+		System.out.println("Angle: " + angle);
+		System.out.println("Up: "+ up);
+		System.out.println("Right: " + right);
+		//System.out.println("Angle: " + complementary_angle);
+		//System.out.println("Hypo: "+ hypoteneus);
+		DebugPaintLine(startx, endx, starty, endy, image);
+		DebugPaintLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image);
+		DebugPaintLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image);
+		//DebugPaintLine(startx, endx, (int)(starty+hypoteneus), (int)(endy+hypoteneus), image);
+		//DebugPaintLine(startx, endx, (int)(starty-hypoteneus), (int)(endy-hypoteneus), image);
+		
+		
+		
+		
+		
+		
+	}
+	
+	public static void FilterBottomLeftComponents(BufferedImage image, int [][] connected_components){
+		for(int i = 0; i < image.getWidth(); i++){
+			for(int j = 0; j < image.getHeight(); j++){
+				if(i < BOTTOM_LEFT_CENTROID_FILTER_VERT && j > BOTTOM_LEFT_CENTROID_FILTER_HORIZ){
+					connected_components[i][j] = 0;
+				}
+			}
+		}
+	}
+	
+	public static int FindBottomBound(BufferedImage image){
+		int bottom_side = BOTTOM_SIDE_OFFSET;
+		for(int i = 0; i < image.getWidth(); i++){
+			image.setRGB(i, bottom_side, 100000);
+		}
+		return bottom_side;
+	}
+	
+	public static int FindRightBound(BufferedImage image){
+		int right_side = RIGHT_SIDE_OFFSET;
+		for(int i = 0; i < image.getHeight(); i++){
+			image.setRGB(right_side, i, 100000);
+		}
+		return right_side;
+	}
+	
+	public static int FindLeftBound(BufferedImage image){
+		int left_side = LEFT_SIDE_OFFSET;
+		for(int i = 0; i < image.getHeight(); i++){
+			image.setRGB(left_side, i, 100000);
+		}
+		return left_side;
+	}
+	
+	public static void FindFireLocation(BufferedImage image,  ArrayList<BubbleGraphNode> bubble_graph, int[] centroid_coord){
+		int centroid_x = 0;
+		int centroid_y = 0;
+		for(BubbleGraphNode node : bubble_graph){
+			if(node.GetNeighbors().size() == 0){
+				//only the top one will have a connectivity of zero
+				centroid_x = node.x;
+				centroid_y = node.y;
+			}
+		}
+		centroid_y += SHOOTER_Y_OFFSET;
+		System.out.println("Shooter: (" + centroid_x + "," + centroid_y + ")");
+		image.setRGB(centroid_x, centroid_y, 100000);
+		centroid_coord[0] = centroid_x;
+		centroid_coord[1] = centroid_y;
+	}
+	
+	public static void RemoveUnconnectedNodes(ArrayList<BubbleGraphNode> bubble_graph){
+		for(int i = 0; i < bubble_graph.size(); i++){
+			if(bubble_graph.get(i).GetNeighbors().size() == 0){
+				bubble_graph.remove(i);
+				i--;
+			}
+		}
+	}
+	
+	private static class byNodeConnectivity implements java.util.Comparator<BubbleGraphNode> {
+		 public int compare(BubbleGraphNode first, BubbleGraphNode second) {
+		  int first_connectivity = ((BubbleGraphNode)first).GetNeighbors().size();
+		  int second_connectivity = ((BubbleGraphNode)second).GetNeighbors().size();
+		  return first_connectivity - second_connectivity;
+		 }
+	} 
+	
+	public static void SortBubbleGraph(ArrayList<BubbleGraphNode> bubble_graph_sorted){
+		Collections.sort(bubble_graph_sorted, new byNodeConnectivity());
+		return;
+	}
 
-	public static void ConstructElementGraph(BufferedImage image, ArrayList<Integer> Centroid_X, ArrayList<Integer> Centroid_Y){
+	public static ArrayList<BubbleGraphNode> ConstructElementGraph(BufferedImage image, ArrayList<Integer> Centroid_X, ArrayList<Integer> Centroid_Y){
 		ArrayList<Integer> Working_X = (ArrayList<Integer>) Centroid_X.clone();
 		ArrayList<Integer> Working_Y = (ArrayList<Integer>) Centroid_Y.clone();
 		ArrayList<BubbleGraphNode> cur_bubble_graph = new ArrayList<BubbleGraphNode>();
@@ -108,7 +259,7 @@ public class BubbleSpinnerWinner {
 			cur_bubble_graph.add(cur_Node);
 		}
 		
-		System.out.println("We have " + cur_bubble_graph.size() + "nodes");
+		System.out.println("We have " + cur_bubble_graph.size() + " nodes");
 		
 		//now we need to construct the graph
 		for(int i = 0; i < cur_bubble_graph.size(); i++){
@@ -124,7 +275,7 @@ public class BubbleSpinnerWinner {
 				//calculating distance
 				int square_distance = (remote_x - cur_x)*(remote_x - cur_x) + (remote_y - cur_y)*(remote_y - cur_y);
 				
-				if(square_distance > NODE_MAX_DISTANCE_CUTOFF){
+				if(square_distance > NODE_MAX_DISTANCE_CUTOFF || square_distance == 0 ){
 					//then it is out or range
 					continue;
 				}
@@ -154,6 +305,8 @@ public class BubbleSpinnerWinner {
 				
 			}
 		}
+		
+		return cur_bubble_graph;
 	}
 	
 	public static void DebugPaintLine(int startx, int endx, int starty, int endy, BufferedImage image){
