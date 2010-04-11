@@ -24,6 +24,8 @@ public class BubbleSpinnerWinner {
 	public static final int BOTTOM_LEFT_CENTROID_FILTER_HORIZ = 500;
 	public static final int BOTTOM_LEFT_CENTROID_FILTER_VERT = 170;
 	
+	public static final int NODE_MAX_DISTANCE_CUTOFF = 800;
+	
 	public static void main(String[] args){
 		BufferedImage image = null;
 		BufferedImage orig_image = null;
@@ -93,7 +95,7 @@ public class BubbleSpinnerWinner {
 		
 		
 		
-		System.out.println("Ming");
+		System.out.println("Done");
 	}
 	
 
@@ -105,6 +107,70 @@ public class BubbleSpinnerWinner {
 			BubbleGraphNode cur_Node = new BubbleGraphNode(Centroid_X.get(i), Centroid_Y.get(i));
 			cur_bubble_graph.add(cur_Node);
 		}
+		
+		System.out.println("We have " + cur_bubble_graph.size() + "nodes");
+		
+		//now we need to construct the graph
+		for(int i = 0; i < cur_bubble_graph.size(); i++){
+		//for(int i = 0; i < 1; i++){
+			//if we comb through the points, we can see which points we are connected to and make a undirected graph
+			BubbleGraphNode cur_node = cur_bubble_graph.get(i);
+			int cur_x = cur_node.x;
+			int cur_y = cur_node.y;
+			for(int j = 0; j < cur_bubble_graph.size(); j++){
+				int remote_x = cur_bubble_graph.get(j).x;
+				int remote_y = cur_bubble_graph.get(j).y;
+				
+				//calculating distance
+				int square_distance = (remote_x - cur_x)*(remote_x - cur_x) + (remote_y - cur_y)*(remote_y - cur_y);
+				
+				if(square_distance > NODE_MAX_DISTANCE_CUTOFF){
+					//then it is out or range
+					continue;
+				}
+					
+				//adding the neighbor
+				cur_node.AddNeighbor(cur_bubble_graph.get(j));
+			}
+		}
+		
+		
+		for(int i = 0; i < cur_bubble_graph.size(); i++){
+			BubbleGraphNode cur_node = cur_bubble_graph.get(i);
+			int cur_x = cur_node.x;
+			int cur_y = cur_node.y;
+			for(int j = 0; j < cur_node.GetNeighbors().size(); j++){
+				int remote_x = cur_node.GetNeighbors().get(j).x;
+				int remote_y = cur_node.GetNeighbors().get(j).y;
+				
+				//debug drawing
+				int start_x = Math.min(cur_x, remote_x);
+				int end_x = Math.max(cur_x, remote_x);
+				int start_y = Math.min(cur_y, remote_y);
+				int end_y = Math.max(cur_y, remote_y);
+				
+				
+				DebugPaintLine(cur_x, remote_x, cur_y, remote_y, image);
+				
+			}
+		}
+	}
+	
+	public static void DebugPaintLine(int startx, int endx, int starty, int endy, BufferedImage image){
+		//System.out.println("("+startx+","+starty+")"+" ("+endx+","+endy+")");
+		/*try {
+			//Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}*/
+		if(((startx == endx)|| (startx == endx-1) || (startx == endx+1)) && ((starty == endy) || (starty == endy+1) || (starty == endy-1))){
+			return;
+		}
+		image.setRGB(startx, starty, 70000);
+		image.setRGB(endx, endy, 70000);
+		DebugPaintLine((startx + endx)/2, endx, (starty + endy)/2, endy, image);
+		DebugPaintLine(startx, (startx + endx)/2, starty, (starty + endy)/2,  image);
 	}
 	
 	public static void PaintCentroids(int [][] connected_components, BufferedImage image, int [] connected_component_count_array, ArrayList<Integer> Centroid_X, ArrayList<Integer> Centroid_Y){
@@ -148,7 +214,7 @@ public class BubbleSpinnerWinner {
 		for(int i = 0; i < connected_component_count+1; i++){
 			if(component_centroid_x[i] != 0){
 				if(component_size_count[i] < MAX_CONNECTED_SIZE){
-					System.out.println("Centroid: (" + component_centroid_x[i] + "," + component_centroid_y[i] + ")" );
+					//System.out.println("Centroid: (" + component_centroid_x[i] + "," + component_centroid_y[i] + ")" );
 					Centroid_X.add(component_centroid_x[i]);
 					Centroid_Y.add(component_centroid_y[i]);
 				}
