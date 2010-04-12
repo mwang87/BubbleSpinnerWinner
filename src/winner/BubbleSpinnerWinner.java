@@ -10,6 +10,7 @@ import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageConsumer;
@@ -61,7 +62,12 @@ public class BubbleSpinnerWinner {
 	public static int bench_x = 0;
 	public static int bench_y = 0;
 	
-	public static boolean DEBUG = true;
+	public static boolean DEBUG = false;
+	
+	public static boolean DRAW_CENTROID_COLOR = false;
+	public static boolean DRAW_CONNECTED_COLOR = true;
+	public static boolean DRAW_SHOOTER_PATH = false;
+	
 	
 	public static final int BLUE = 0;
 	public static final int PINK = 0;
@@ -77,6 +83,7 @@ public class BubbleSpinnerWinner {
 		BufferedImage screen_cap = null;
 		try {
 			Robot robot = new Robot();
+			
 			screen_cap = new Robot().createScreenCapture(
 			           new Rectangle(Toolkit.getDefaultToolkit().getScreenSize()) );
 			ImageIO.write( screen_cap, "bmp" , new File ( "screen.bmp" ));
@@ -98,7 +105,7 @@ public class BubbleSpinnerWinner {
 		BufferedImage image = null;
 		BufferedImage orig_image = null;
 		BufferedImage search_image = null;
-		File file = new File("spinner.bmp");
+		File file = new File("spinner2.bmp");
 		try {
 			image = ImageIO.read(file);
 			orig_image = ImageIO.read(file);
@@ -167,9 +174,9 @@ public class BubbleSpinnerWinner {
 		//filter out the centroids that are not in the center
 		FilterBottomLeftCentroids(centroid_X, centroid_Y);
 		
-		PaintCentroids(connected_components, image, connected_component_count_array, centroid_X, centroid_Y);
+		//PaintCentroids(connected_components, image, connected_component_count_array, centroid_X, centroid_Y);
 		
-		ArrayList<BubbleGraphNode> bubble_graph = ConstructElementGraph(image, orig_image, centroid_X, centroid_Y);
+		ArrayList<BubbleGraphNode> bubble_graph = ConstructElementGraph(image, orig_image, centroid_X, centroid_Y, connected_components);
 		
 		//now we will rank in order which nodes have the least connectivity
 		ArrayList<BubbleGraphNode> bubble_graph_sorted = (ArrayList<BubbleGraphNode>) bubble_graph.clone();
@@ -181,11 +188,85 @@ public class BubbleSpinnerWinner {
 		FindFireLocation(image, bubble_graph_sorted, shooter_coord);
 		int shooter_x = SHOOTER_X;
 		int shooter_y = SHOOTER_Y;
+		int shooter_color = orig_image.getRGB(shooter_x+2, shooter_y-1);
+		int shooter_color2 = GetUnconnectedNodeColor(bubble_graph);
+		
+		System.out.println("Shooter Color:" + shooter_color );
+		System.out.println("Shooter Color2:" + shooter_color2 );
+		System.out.println("Shooter Color:" + orig_image.getRGB(shooter_x+2, shooter_y));
+		System.out.println("Shooter Color:" + orig_image.getRGB(shooter_x+1, shooter_y));
+		System.out.println("Shooter Color:" + orig_image.getRGB(shooter_x, shooter_y-1));
 		
 		
 		//RayTrace(image, shooter_x, shooter_y, 10, 300, bubble_graph_sorted);
 		//RayTrace(image, shooter_x, shooter_y, 500, 300, bubble_graph_sorted);
-		RayTrace(image, shooter_x, shooter_y, 220, 300, bubble_graph_sorted, orig_image);
+		//RayTrace(image, shooter_x, shooter_y, 220, 300, bubble_graph_sorted, orig_image);
+		//int clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 220, 300, bubble_graph_sorted, orig_image, shooter_color2, 2);
+		//int clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 10, 220, bubble_graph_sorted, orig_image, shooter_color2, 3);
+		//int clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 10, 300, bubble_graph_sorted, orig_image, shooter_color2, 3);
+		int clear_number_max = 0;
+		int clear_max_height = 0;
+		int side = 0;
+		for(int i = 50; i < 400; i++){
+			System.out.println("i = " + i);
+			int temp_clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 10, i, bubble_graph_sorted, orig_image, shooter_color2, 3, false);
+			if(temp_clear_number > clear_number_max){
+				clear_number_max = temp_clear_number;
+				clear_max_height = i;
+				side = 1;
+			}
+		}
+		for(int i = 50; i < 400; i++){
+			System.out.println("i = " + i);
+			int temp_clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 490, i, bubble_graph_sorted, orig_image, shooter_color2, 3, false);
+			if(temp_clear_number > clear_number_max){
+				clear_number_max = temp_clear_number;
+				clear_max_height = i;
+				side = 2;
+			}
+		}
+		/*
+		for(int i = 50; i < 400; i++){
+			System.out.println("i = " + i);
+			int temp_clear_number = RayTraceRecursive(image, shooter_x, shooter_y, i, 490 , bubble_graph_sorted, orig_image, shooter_color2, 2, false);
+			if(temp_clear_number > clear_number_max){
+				clear_number_max = temp_clear_number;
+				clear_max_height = i;
+				side = 3;
+			}
+		}
+		*/
+		if(side == 1){
+			RayTraceRecursive(image, shooter_x, shooter_y, 10, clear_max_height, bubble_graph_sorted, orig_image, shooter_color2, 3, true);
+		}
+		if(side == 2){
+			RayTraceRecursive(image, shooter_x, shooter_y, 490, clear_max_height, bubble_graph_sorted, orig_image, shooter_color2, 3, true);
+		}
+		if(side == 3){
+			RayTraceRecursive(image, shooter_x, shooter_y, clear_max_height, 490, bubble_graph_sorted, orig_image, shooter_color2, 2, true);
+		}
+		
+		
+		System.out.println("Total Clear Number Max Left: " + clear_number_max + " Max Height: " + clear_max_height);
+		//Make actual Movement
+		Robot robot;
+		try {
+			robot = new Robot();
+			if(side == 1){
+				robot.mouseMove(10+bench_x, clear_max_height+bench_y);
+			}
+			if(side == 2){
+				robot.mouseMove(500+bench_x, clear_max_height+bench_y);
+			}
+			robot.mousePress(InputEvent.BUTTON1_MASK);
+			robot.mouseRelease(InputEvent.BUTTON1_MASK);
+			
+		} catch (AWTException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
+		
 		//RayTrace(image, shooter_x, shooter_y, 400, 300);
 		
 				
@@ -378,11 +459,11 @@ public class BubbleSpinnerWinner {
 		int[] intersec_location_top = new int[2];
 		int[] intersec_location_bot = new int[2];
 		
-		TraceLine(startx, endx, starty, endy, image, intersec_location_mid);
+		TraceLine(startx, endx, starty, endy, image, intersec_location_mid, false);
 		//System.out.println(intersec_location_mid[0] + " " + intersec_location_mid[1]);
-		TraceLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image, intersec_location_top);
+		TraceLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image, intersec_location_top, false);
 		//System.out.println(intersec_location_top[0] + " " + intersec_location_top[1]);
-		TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot);
+		TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot, false);
 		//System.out.println(intersec_location_bot[0] + " " + intersec_location_bot[1]);
 		int clear_number = 0;
 		
@@ -400,9 +481,9 @@ public class BubbleSpinnerWinner {
 				up = (Math.cos(angle)*BALL_RADIUS);
 				right = (Math.sin(angle)*BALL_RADIUS);
 				
-				TraceLine(startx, endx, starty, endy, image, intersec_location_mid);
-				TraceLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image, intersec_location_top);
-				TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot);
+				TraceLine(startx, endx, starty, endy, image, intersec_location_mid, false);
+				TraceLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image, intersec_location_top, false);
+				TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot, false);
 				
 				System.out.println("Hit Left Side");
 				
@@ -420,9 +501,9 @@ public class BubbleSpinnerWinner {
 				up = (Math.cos(angle)*BALL_RADIUS);
 				right = (Math.sin(angle)*BALL_RADIUS);
 				
-				TraceLine(startx, endx, starty, endy, image, intersec_location_mid);
-				TraceLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image, intersec_location_top);
-				TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot);
+				TraceLine(startx, endx, starty, endy, image, intersec_location_mid, false);
+				TraceLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image, intersec_location_top, false);
+				TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot, false);
 				
 				System.out.println("Hit Right Side");
 				
@@ -440,9 +521,9 @@ public class BubbleSpinnerWinner {
 				up = (Math.cos(angle)*BALL_RADIUS);
 				right = (Math.sin(angle)*BALL_RADIUS);
 				
-				TraceLine(startx, endx, starty, endy, image, intersec_location_mid);
-				TraceLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image, intersec_location_top);
-				TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot);
+				TraceLine(startx, endx, starty, endy, image, intersec_location_mid, false);
+				TraceLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image, intersec_location_top, false);
+				TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot, false);
 				
 				System.out.println("Hit Bottom Side");
 				
@@ -455,6 +536,78 @@ public class BubbleSpinnerWinner {
 			clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color);
 		}
 		System.out.println("Actually cleared: " + clear_number);
+	}
+	
+	
+	public static int RayTraceRecursive(BufferedImage image, int startx, int starty, int endx, int endy, ArrayList<BubbleGraphNode> bubble_graph, BufferedImage orig_image, int shooter_color, int recursion_level, boolean DRAW_OVERRIDE){
+		if(recursion_level == 0)
+			return 0;
+		
+		int left_side = FindLeftBound(image);
+		int right_side = FindRightBound(image);
+		int bottom_side = FindBottomBound(image);
+		
+		int delta_x = (endx - startx);
+		int delta_y = (endy - starty);
+		
+		double angle = Math.atan2((double)(delta_y), (double)delta_x);
+		
+		
+		double up = (Math.cos(angle)*BALL_RADIUS);
+		double right = (Math.sin(angle)*BALL_RADIUS);
+		
+		int[] intersec_location_mid = new int[2];
+		int[] intersec_location_top = new int[2];
+		int[] intersec_location_bot = new int[2];
+		
+		System.out.println(startx + " " + starty + " " + endx + " " + endy + " " + delta_x + " " + delta_y);
+		
+		TraceLine(startx, endx, starty, endy, image, intersec_location_mid, DRAW_OVERRIDE);
+		//System.out.println(intersec_location_mid[0] + " " + intersec_location_mid[1]);
+		TraceLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image, intersec_location_top, DRAW_OVERRIDE);
+		//System.out.println(intersec_location_top[0] + " " + intersec_location_top[1]);
+		TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot, DRAW_OVERRIDE);
+		//System.out.println(intersec_location_bot[0] + " " + intersec_location_bot[1]);
+		int clear_number = 0;
+		
+		if(HitSide(intersec_location_mid[0], intersec_location_mid[1], left_side, right_side, bottom_side)){
+			System.out.println("Hit Side");
+			//so now we want to bounce, but we have to calculate where it will hit, since the size is not zero
+			//so we can take where the center hits, and assume that is where it will actually bounce even though this breaks down in the corners
+			if(intersec_location_mid[0] == left_side){
+				System.out.println("Hit Left Side");
+				delta_x = - delta_x;
+				startx = intersec_location_mid[0];
+				starty = intersec_location_mid[1];
+				endx = delta_x + startx;
+				endy = delta_y + starty;
+				System.out.println(startx + " " + starty + " " + endx + " " + endy + " " + delta_x + " " + delta_y);
+				clear_number = RayTraceRecursive(image, startx, starty, endx, endy, bubble_graph, orig_image, shooter_color, recursion_level-1, DRAW_OVERRIDE);
+			}
+			else if(intersec_location_mid[0] == right_side){
+				System.out.println("Hit Right Side");
+				delta_x = - delta_x;
+				startx = intersec_location_mid[0];
+				starty = intersec_location_mid[1];
+				endx = delta_x + startx;
+				endy = delta_y + starty;
+				clear_number = RayTraceRecursive(image, startx, starty, endx, endy, bubble_graph, orig_image, shooter_color, recursion_level-1, DRAW_OVERRIDE);
+			}
+			else if(intersec_location_mid[1] == bottom_side){
+				System.out.println("Hit Bottom Side");
+				delta_y = - delta_y;
+				startx = intersec_location_mid[0];
+				starty = intersec_location_mid[1];
+				endx = delta_x + startx;
+				endy = delta_y + starty;
+				clear_number = RayTraceRecursive(image, startx, starty, endx, endy, bubble_graph, orig_image, shooter_color, recursion_level-1, DRAW_OVERRIDE);
+			}
+		}
+		else{
+			clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color);
+		}
+		
+		return clear_number;
 	}
 	
 	public static int GetNumberCleared(BufferedImage image, int hit_x, int hit_y, ArrayList<BubbleGraphNode> bubble_graph, int shooter_color){
@@ -471,10 +624,13 @@ public class BubbleSpinnerWinner {
 			}
 		}
 		System.out.println("Hit: " + hit_x + " " + hit_y + " node centroid " +  min_node.x + " "  + min_node.y);
+		if(min_node.GetNeighbors().size() >= 6){
+			return 1;
+		}
 		int number_connected = RecursiveSearchNumberConnected(min_node);
 		System.out.println("Number Connected: " + number_connected);
 		if(min_node.color != shooter_color){
-			System.out.println("Different Colored");
+			System.out.println("Different Colored, Shooter Color: " + shooter_color + " Node Color: " + min_node.color);
 			return 1;
 		}
 		else{
@@ -505,7 +661,9 @@ public class BubbleSpinnerWinner {
 		return false;
 	}
 	
-	public static void TraceLine(int startx, int endx, int starty, int endy, BufferedImage image, int [] intersec_location){
+	public static void TraceLine(int startx, int endx, int starty, int endy, BufferedImage image, int [] intersec_location, boolean DRAW_OVERRIDE){
+		System.out.println(startx + " " + starty);
+		System.out.println(endx + " " + endy);
 		int delta_x = (endx - startx)*2;
 		int delta_y = (endy - starty)*2;
 		//lets take one start and end point and then walk to it
@@ -513,34 +671,43 @@ public class BubbleSpinnerWinner {
 		int abs_delta_y = Math.abs(delta_y);
 		intersec_location[0] = endx;
 		intersec_location[1] = endy;
+		int sign_x = delta_x / abs_delta_x;
+		int sign_y = delta_y / abs_delta_y;
 		if(abs_delta_x > abs_delta_y){
 			//we will want to walk with x
-			double slope = (double)(delta_y)/((double)(delta_x));
+			double slope = (double)(abs_delta_y)/((double)(abs_delta_x));
+			System.out.println("Slope: " + slope);
 			for(int i = 0; i < abs_delta_x; i++){
-				int stepping_x = startx + i;
-				int stepping_y = starty + (int)(slope*(double)i);
-				if(image.getRGB(stepping_x, stepping_y) != -16777216 && i > 50){
+				int stepping_x = startx + i*sign_x;
+				int stepping_y = starty + (int)(slope*(double)i*sign_y);
+				
+				//System.out.println(stepping_x + " " + stepping_y + " " + image.getRGB(stepping_x, stepping_y) + " " + i);
+				
+				if((image.getRGB(stepping_x, stepping_y) != -16777216 && (image.getRGB(stepping_x, stepping_y) != 20000) ) && i > 50){
 					intersec_location[0] = stepping_x;
 					intersec_location[1] = stepping_y;
 					break;
 				}
-				image.setRGB(stepping_x, stepping_y, 20000);
-				
+				if(DRAW_SHOOTER_PATH || DRAW_OVERRIDE)
+					image.setRGB(stepping_x, stepping_y, 20000);
 			}
 		}
 		else{
 			//we will want to walk with y
-			double slope = (double)(delta_x)/((double)(delta_y));
+			double slope = (double)(abs_delta_x)/((double)(abs_delta_y));
 			for(int i = 0 ; i < abs_delta_y; i++){
-				int stepping_x = startx + (int)(slope*(double)i);
-				int stepping_y = starty + i;
-				//System.out.println(stepping_x + " " + stepping_y);
-				if(image.getRGB(stepping_x, stepping_y) != -16777216 && i > 50){
+				int stepping_x = startx + (int)(slope*(double)i*sign_x);
+				int stepping_y = starty + i*sign_y;
+				
+				//System.out.println(stepping_x + " " + stepping_y + " " + image.getRGB(stepping_x, stepping_y) + " " + i);
+				
+				if(image.getRGB(stepping_x, stepping_y) != -16777216 && (image.getRGB(stepping_x, stepping_y) != 20000) && i > 50){
 					intersec_location[0] = stepping_x;
 					intersec_location[1] = stepping_y;
 					break;
 				}
-				image.setRGB(stepping_x, stepping_y, 20000);
+				if(DRAW_SHOOTER_PATH || DRAW_OVERRIDE)
+					image.setRGB(stepping_x, stepping_y, 20000);
 			}
 		}
 	}
@@ -609,6 +776,15 @@ public class BubbleSpinnerWinner {
 		}
 	}
 	
+	public static int GetUnconnectedNodeColor(ArrayList<BubbleGraphNode> bubble_graph){
+		for(int i = 0; i < bubble_graph.size(); i++){
+			if(bubble_graph.get(i).GetNeighbors().size() == 0){
+				return bubble_graph.get(i).color;
+			}
+		}
+		return 0;
+	}
+	
 	private static class byNodeConnectivity implements java.util.Comparator<BubbleGraphNode> {
 		 public int compare(BubbleGraphNode first, BubbleGraphNode second) {
 		  int first_connectivity = ((BubbleGraphNode)first).GetNeighbors().size();
@@ -622,14 +798,56 @@ public class BubbleSpinnerWinner {
 		return;
 	}
 
-	public static ArrayList<BubbleGraphNode> ConstructElementGraph(BufferedImage image, BufferedImage orig_image, ArrayList<Integer> Centroid_X, ArrayList<Integer> Centroid_Y){
-		ArrayList<Integer> Working_X = (ArrayList<Integer>) Centroid_X.clone();
-		ArrayList<Integer> Working_Y = (ArrayList<Integer>) Centroid_Y.clone();
+	public static ArrayList<BubbleGraphNode> ConstructElementGraph(BufferedImage image, BufferedImage orig_image, ArrayList<Integer> Centroid_X, ArrayList<Integer> Centroid_Y, int [][] connected_components ){
 		ArrayList<BubbleGraphNode> cur_bubble_graph = new ArrayList<BubbleGraphNode>();
 		for(int i = 0; i < Centroid_X.size(); i++){
 			BubbleGraphNode cur_Node = new BubbleGraphNode(Centroid_X.get(i), Centroid_Y.get(i));
-			cur_Node.color = orig_image.getRGB(Centroid_X.get(i)+2, Centroid_Y.get(i)-1);
-			image.setRGB(Centroid_X.get(i)+2, Centroid_Y.get(i)-1,  orig_image.getRGB(Centroid_X.get(i)+2, Centroid_Y.get(i)-1));
+			
+			int connected_component_number = connected_components[Centroid_X.get(i)][Centroid_Y.get(i)];
+			HashMap<Integer, Integer> color_count = new HashMap<Integer, Integer>();
+			for(int p = 0; p < image.getWidth(); p++){
+				for(int q = 0; q < image.getHeight(); q++){
+					if(connected_component_number == connected_components[p][q]){
+						if(color_count.containsKey(orig_image.getRGB(p, q))){
+							int count = color_count.get(orig_image.getRGB(p, q));
+							count++;
+							color_count.put(orig_image.getRGB(p, q), count);
+						}
+						else{
+							color_count.put(orig_image.getRGB(p, q), 1);
+						}
+					}
+				}
+			}
+			//find the most frequent
+			int most_frequent_color = 0;
+			int max_freq = 0;
+			for(Integer key : color_count.keySet()){
+				int frequency = color_count.get(key);
+				//System.out.println("Color: " + key + " Freq: " + frequency);
+				if(frequency > max_freq){
+					most_frequent_color = key;
+					max_freq = frequency;
+				}
+			}
+			
+			
+			
+			cur_Node.color = most_frequent_color;
+			System.out.println(cur_Node.color + " " + most_frequent_color);
+			if(DRAW_CENTROID_COLOR){
+				image.setRGB(Centroid_X.get(i)+2, Centroid_Y.get(i)-1,  orig_image.getRGB(Centroid_X.get(i)+2, Centroid_Y.get(i)-1));
+			}
+			if(DRAW_CONNECTED_COLOR){
+				for(int p = 0; p < image.getWidth(); p++){
+					for(int q = 0; q < image.getHeight(); q++){
+						if(connected_component_number == connected_components[p][q]){
+							image.setRGB(p, q, cur_Node.color);
+						}
+					}
+				}
+			}
+			
 			cur_bubble_graph.add(cur_Node);
 		}
 		
