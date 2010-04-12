@@ -3,6 +3,8 @@ package winner;
 import java.awt.AWTException;
 import java.awt.HeadlessException;
 import java.awt.Image;
+import java.awt.MouseInfo;
+import java.awt.PointerInfo;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Toolkit;
@@ -14,6 +16,8 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageConsumer;
+
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -80,7 +84,7 @@ public class BubbleSpinnerWinner {
 		
 		DrawDisplay();
 		
-		BufferedImage screen_cap = null;
+		/*BufferedImage screen_cap = null;
 		try {
 			Robot robot = new Robot();
 			
@@ -97,213 +101,213 @@ public class BubbleSpinnerWinner {
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} 
+		} */
 		
 		
-		while(true){
-		
-			BufferedImage image = null;
-			BufferedImage orig_image = null;
-			BufferedImage search_image = null;
-			File file = new File("spinner2.bmp");
-			try {
-				image = ImageIO.read(file);
-				orig_image = ImageIO.read(file);
-				search_image = ImageIO.read(file);
-				
-				GetPlayScreen(search_image, bench_x, bench_y);
-				
-				if(!DEBUG){
-					for(int i = 0; i < image.getWidth(); i++){
-						for(int j = 0; j < image.getHeight(); j++){
-							image.setRGB(i, j, search_image.getRGB(i,j));
-							orig_image.setRGB(i, j, search_image.getRGB(i,j));
-						}
+	}
+	
+	public static void PlayRound(){
+		BufferedImage image = null;
+		BufferedImage orig_image = null;
+		BufferedImage search_image = null;
+		File file = new File("spinner2.bmp");
+		try {
+			image = ImageIO.read(file);
+			orig_image = ImageIO.read(file);
+			search_image = ImageIO.read(file);
+			
+			GetPlayScreen(search_image, bench_x, bench_y);
+			
+			if(!DEBUG){
+				for(int i = 0; i < image.getWidth(); i++){
+					for(int j = 0; j < image.getHeight(); j++){
+						image.setRGB(i, j, search_image.getRGB(i,j));
+						orig_image.setRGB(i, j, search_image.getRGB(i,j));
 					}
 				}
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			}
-			
-			
-			
-			
-			//lets find connected components
-			int [] connected_component_count_array = {0};
-			int [] shooter_coord = {0,0};
-			int [][] connected_components = GetConnectedComponents(image, connected_component_count_array);
-			
-			System.out.println("We have :"+ connected_component_count_array[0] + " connected components");
-	
-			
-			//filter based on size
-			ConnectedComponentSizeFilter(connected_components, image, connected_component_count_array);
-			
-			//color stuff black according to component number
-			ColorComponentsFilter(connected_components, image);
-			
-			//find connected components again
-			connected_components = GetConnectedComponents(image, connected_component_count_array);
-			
-			System.out.println("We have :"+ connected_component_count_array[0] + " connected components");
-			
-			//filter based on connected component that is entirely enclosed
-			EntirelyEnclosedFilter(connected_components, image, connected_component_count_array);
-			
-			//filter based on size
-			ConnectedComponentSizeFilter(connected_components, image, connected_component_count_array);
-			
-			//filter based on non circular objects by determining if component is a circle
-			CircleComponentFilter(connected_components, image, connected_component_count_array);
-			
-			//filter out bottom left components, and dump it to zero
-			FilterBottomLeftComponents(image, connected_components);
-			
-			//color stuff black according to component number
-			ColorComponentsFilter(connected_components, image);
-			
-			//now we can create a graph from the centroids of the remaining connected components
-			connected_components = GetConnectedComponents(image, connected_component_count_array);
-			
-			ArrayList<Integer> centroid_X = new ArrayList<Integer>();
-			ArrayList<Integer> centroid_Y = new ArrayList<Integer>();
-			
-			GetCentroid(connected_components, image, connected_component_count_array, centroid_X, centroid_Y);
-			
-			//filter out the centroids that are not in the center
-			FilterBottomLeftCentroids(centroid_X, centroid_Y);
-			
-			//PaintCentroids(connected_components, image, connected_component_count_array, centroid_X, centroid_Y);
-			
-			ArrayList<BubbleGraphNode> bubble_graph = ConstructElementGraph(image, orig_image, centroid_X, centroid_Y, connected_components);
-			
-			//now we will rank in order which nodes have the least connectivity
-			ArrayList<BubbleGraphNode> bubble_graph_sorted = (ArrayList<BubbleGraphNode>) bubble_graph.clone();
-			
-			SortBubbleGraph(bubble_graph_sorted);
-			
-			
-			
-			FindFireLocation(image, bubble_graph_sorted, shooter_coord);
-			int shooter_x = SHOOTER_X;
-			int shooter_y = SHOOTER_Y;
-			int shooter_color = orig_image.getRGB(shooter_x+2, shooter_y-1);
-			int shooter_color2 = GetUnconnectedNodeColor(bubble_graph);
-			
-			System.out.println("Shooter Color:" + shooter_color );
-			System.out.println("Shooter Color2:" + shooter_color2 );
-			System.out.println("Shooter Color:" + orig_image.getRGB(shooter_x+2, shooter_y));
-			System.out.println("Shooter Color:" + orig_image.getRGB(shooter_x+1, shooter_y));
-			System.out.println("Shooter Color:" + orig_image.getRGB(shooter_x, shooter_y-1));
-			
-			
-			//RayTrace(image, shooter_x, shooter_y, 10, 300, bubble_graph_sorted);
-			//RayTrace(image, shooter_x, shooter_y, 500, 300, bubble_graph_sorted);
-			//RayTrace(image, shooter_x, shooter_y, 220, 300, bubble_graph_sorted, orig_image);
-			//int clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 220, 300, bubble_graph_sorted, orig_image, shooter_color2, 2);
-			//int clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 10, 220, bubble_graph_sorted, orig_image, shooter_color2, 3);
-			//int clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 10, 300, bubble_graph_sorted, orig_image, shooter_color2, 3);
-			int clear_number_max = 0;
-			int clear_max_height = 0;
-			int side = 0;
-			for(int i = 100; i < 400; i++){
-				System.out.println("i = " + i);
-				int temp_clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 10, i, bubble_graph_sorted, orig_image, shooter_color2, 3, false);
-				if(temp_clear_number > clear_number_max){
-					clear_number_max = temp_clear_number;
-					clear_max_height = i;
-					side = 1;
-				}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		
+		
+		//lets find connected components
+		int [] connected_component_count_array = {0};
+		int [] shooter_coord = {0,0};
+		int [][] connected_components = GetConnectedComponents(image, connected_component_count_array);
+		
+		System.out.println("We have :"+ connected_component_count_array[0] + " connected components");
+
+		
+		//filter based on size
+		ConnectedComponentSizeFilter(connected_components, image, connected_component_count_array);
+		
+		//color stuff black according to component number
+		ColorComponentsFilter(connected_components, image);
+		
+		//find connected components again
+		connected_components = GetConnectedComponents(image, connected_component_count_array);
+		
+		System.out.println("We have :"+ connected_component_count_array[0] + " connected components");
+		
+		//filter based on connected component that is entirely enclosed
+		EntirelyEnclosedFilter(connected_components, image, connected_component_count_array);
+		
+		//filter based on size
+		ConnectedComponentSizeFilter(connected_components, image, connected_component_count_array);
+		
+		//filter based on non circular objects by determining if component is a circle
+		CircleComponentFilter(connected_components, image, connected_component_count_array);
+		
+		//filter out bottom left components, and dump it to zero
+		FilterBottomLeftComponents(image, connected_components);
+		
+		//color stuff black according to component number
+		ColorComponentsFilter(connected_components, image);
+		
+		//now we can create a graph from the centroids of the remaining connected components
+		connected_components = GetConnectedComponents(image, connected_component_count_array);
+		
+		ArrayList<Integer> centroid_X = new ArrayList<Integer>();
+		ArrayList<Integer> centroid_Y = new ArrayList<Integer>();
+		
+		GetCentroid(connected_components, image, connected_component_count_array, centroid_X, centroid_Y);
+		
+		//filter out the centroids that are not in the center
+		FilterBottomLeftCentroids(centroid_X, centroid_Y);
+		
+		//PaintCentroids(connected_components, image, connected_component_count_array, centroid_X, centroid_Y);
+		
+		ArrayList<BubbleGraphNode> bubble_graph = ConstructElementGraph(image, orig_image, centroid_X, centroid_Y, connected_components);
+		
+		//now we will rank in order which nodes have the least connectivity
+		ArrayList<BubbleGraphNode> bubble_graph_sorted = (ArrayList<BubbleGraphNode>) bubble_graph.clone();
+		
+		SortBubbleGraph(bubble_graph_sorted);
+		
+		
+		
+		FindFireLocation(image, bubble_graph_sorted, shooter_coord);
+		int shooter_x = SHOOTER_X;
+		int shooter_y = SHOOTER_Y;
+		int shooter_color = orig_image.getRGB(shooter_x+2, shooter_y-1);
+		int shooter_color2 = GetUnconnectedNodeColor(bubble_graph);
+		
+		System.out.println("Shooter Color:" + shooter_color );
+		System.out.println("Shooter Color2:" + shooter_color2 );
+		System.out.println("Shooter Color:" + orig_image.getRGB(shooter_x+2, shooter_y));
+		System.out.println("Shooter Color:" + orig_image.getRGB(shooter_x+1, shooter_y));
+		System.out.println("Shooter Color:" + orig_image.getRGB(shooter_x, shooter_y-1));
+		
+		
+		//RayTrace(image, shooter_x, shooter_y, 10, 300, bubble_graph_sorted);
+		//RayTrace(image, shooter_x, shooter_y, 500, 300, bubble_graph_sorted);
+		//RayTrace(image, shooter_x, shooter_y, 220, 300, bubble_graph_sorted, orig_image);
+		//int clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 220, 300, bubble_graph_sorted, orig_image, shooter_color2, 2);
+		//int clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 10, 220, bubble_graph_sorted, orig_image, shooter_color2, 3);
+		//int clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 10, 300, bubble_graph_sorted, orig_image, shooter_color2, 3);
+		int clear_number_max = 0;
+		int clear_max_height = 0;
+		int side = 0;
+		for(int i = 100; i < 400; i++){
+			System.out.println("i = " + i);
+			int temp_clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 10, i, bubble_graph_sorted, orig_image, shooter_color2, 3, false);
+			if(temp_clear_number > clear_number_max){
+				clear_number_max = temp_clear_number;
+				clear_max_height = i;
+				side = 1;
 			}
-			for(int i = 100; i < 400; i++){
-				System.out.println("i = " + i);
-				int temp_clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 490, i, bubble_graph_sorted, orig_image, shooter_color2, 3, false);
-				if(temp_clear_number > clear_number_max){
-					clear_number_max = temp_clear_number;
-					clear_max_height = i;
-					side = 2;
-				}
+		}
+		for(int i = 100; i < 400; i++){
+			System.out.println("i = " + i);
+			int temp_clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 490, i, bubble_graph_sorted, orig_image, shooter_color2, 3, false);
+			if(temp_clear_number > clear_number_max){
+				clear_number_max = temp_clear_number;
+				clear_max_height = i;
+				side = 2;
 			}
+		}
+		
+		for(int i = 100; i < 300; i++){
+			System.out.println("i = " + i);
+			if(i == shooter_x)
+				continue;
+			int temp_clear_number = RayTraceRecursive(image, shooter_x, shooter_y, i, 490 , bubble_graph_sorted, orig_image, shooter_color2, 1, false);
+			if(temp_clear_number > clear_number_max){
+				clear_number_max = temp_clear_number;
+				clear_max_height = i;
+				side = 3;
+			}
+		}
+		
+		if(side == 1){
+			RayTraceRecursive(image, shooter_x, shooter_y, 10, clear_max_height, bubble_graph_sorted, orig_image, shooter_color2, 3, true);
+		}
+		if(side == 2){
+			RayTraceRecursive(image, shooter_x, shooter_y, 490, clear_max_height, bubble_graph_sorted, orig_image, shooter_color2, 3, true);
+		}
+		if(side == 3){
+			RayTraceRecursive(image, shooter_x, shooter_y, clear_max_height, 490, bubble_graph_sorted, orig_image, shooter_color2, 2, true);
+		}
+		
+		
+		System.out.println("Total Clear Number Max Left: " + clear_number_max + " Max Height: " + clear_max_height);
+		//Make actual Movement
+		Robot robot;
+		try {
+			PointerInfo a = MouseInfo.getPointerInfo();
+			java.awt.Point b  = a.getLocation();
+			int orig_mouse_x = (int)b.getX();
+			int orig_mouse_y = (int)b.getY();
 			
-			for(int i = 100; i < 300; i++){
-				System.out.println("i = " + i);
-				if(i == shooter_x)
-					continue;
-				int temp_clear_number = RayTraceRecursive(image, shooter_x, shooter_y, i, 490 , bubble_graph_sorted, orig_image, shooter_color2, 1, false);
-				if(temp_clear_number > clear_number_max){
-					clear_number_max = temp_clear_number;
-					clear_max_height = i;
-					side = 3;
-				}
-			}
+			robot = new Robot();
 			
 			if(side == 1){
-				RayTraceRecursive(image, shooter_x, shooter_y, 10, clear_max_height, bubble_graph_sorted, orig_image, shooter_color2, 3, true);
+				robot.mouseMove(10+bench_x, clear_max_height+bench_y);
 			}
 			if(side == 2){
-				RayTraceRecursive(image, shooter_x, shooter_y, 490, clear_max_height, bubble_graph_sorted, orig_image, shooter_color2, 3, true);
+				robot.mouseMove(490+bench_x, clear_max_height+bench_y);
 			}
 			if(side == 3){
-				RayTraceRecursive(image, shooter_x, shooter_y, clear_max_height, 490, bubble_graph_sorted, orig_image, shooter_color2, 2, true);
+				robot.mouseMove(clear_max_height+bench_x, 490+bench_y);
 			}
 			
 			
-			System.out.println("Total Clear Number Max Left: " + clear_number_max + " Max Height: " + clear_max_height);
-			//Make actual Movement
-			Robot robot;
+			robot.mousePress(InputEvent.BUTTON1_MASK);
 			try {
-				robot = new Robot();
-				if(side == 1){
-					robot.mouseMove(10+bench_x, clear_max_height+bench_y);
-				}
-				if(side == 2){
-					robot.mouseMove(490+bench_x, clear_max_height+bench_y);
-				}
-				if(side == 3){
-					robot.mouseMove(clear_max_height+bench_x, 490+bench_y);
-				}
-				robot.mousePress(InputEvent.BUTTON1_MASK);
-				try {
-					Thread.sleep(200);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				robot.mouseRelease(InputEvent.BUTTON1_MASK);
-				
-			} catch (AWTException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-			
-			
-			//RayTrace(image, shooter_x, shooter_y, 400, 300);
-			
-					
-			//So now we will filter out any unconnected nodes
-			//RemoveUnconnectedNodes(bubble_graph_sorted);
-			
-			
-			
-			
-			try {
-				ImageIO.write( image, "bmp" , new File ( "output.bmp" ));
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			
-			try {
-				Thread.sleep(10000);
+				Thread.sleep(200);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			System.out.println("Done");
+			robot.mouseRelease(InputEvent.BUTTON1_MASK);
+			robot.mouseMove(orig_mouse_x, orig_mouse_y);
 			
+		} catch (AWTException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
 		}
 		
 		
+		//RayTrace(image, shooter_x, shooter_y, 400, 300);
+		
+				
+		//So now we will filter out any unconnected nodes
+		//RemoveUnconnectedNodes(bubble_graph_sorted);
+		
+		
+		
+		
+		try {
+			ImageIO.write( image, "bmp" , new File ( "output.bmp" ));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		System.out.println("Done");
 	}
 	
 	public static void DrawDisplay(){
@@ -321,7 +325,21 @@ public class BubbleSpinnerWinner {
 		vertical_enter.setBounds (10, 10, 200, 200);
 		final Button enter_button = new Button(shell, SWT.PUSH);
 		enter_button.setText("Enter Top Left Spinner");
+		final Button play_button  = new Button(shell, SWT.PUSH);
 		
+		play_button.setText("Play Round");
+		play_button.addListener(SWT.Selection, new Listener(){
+			@Override
+			public void handleEvent(Event e) {
+				if(bench_x == 0 && bench_y ==0){
+					output_label.setSize(300, 12);
+					output_label.setText("Benchmark Location First");
+				}
+				else{
+					(new Thread(new PlayRoundThread())).start();
+				}
+			}
+		});
 		
 		enter_button.addListener(SWT.Selection, new Listener(){
 			@Override
