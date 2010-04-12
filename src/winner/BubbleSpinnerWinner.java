@@ -51,6 +51,15 @@ public class BubbleSpinnerWinner {
 	
 	public static final double BALL_RADIUS = 10d;
 	
+	public static final int CALIBRATION_SEARCH_RADIUS = 4;
+	
+	public static int bench_x = 0;
+	public static int bench_y = 0;
+	
+	public static BufferedImage search_image = null;
+	
+	public static boolean DEBUG = false;
+	
 	@SuppressWarnings("unchecked")
 	public static void main(String[] args){
 		
@@ -83,6 +92,14 @@ public class BubbleSpinnerWinner {
 		try {
 			image = ImageIO.read(file);
 			orig_image = ImageIO.read(file);
+			if(!DEBUG){
+				for(int i = 0; i < image.getWidth(); i++){
+					for(int j = 0; j < image.getHeight(); j++){
+						image.setRGB(i, j, search_image.getRGB(i,j));
+						orig_image.setRGB(i, j, search_image.getRGB(i,j));
+					}
+				}
+			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -207,18 +224,10 @@ public class BubbleSpinnerWinner {
 				output_label.setSize(300, 12);
 				output_label.setText(horizontal_pos_string+ " " + vertical_pos_string);
 				
-				try {
-					Robot robot = new Robot();
-					Image screen_cap = new Robot().createScreenCapture(
-					           new Rectangle(Toolkit.getDefaultToolkit().getScreenSize()) );
-					
-					
-				} catch (AWTException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				}
+				int horizontal_pos = Integer.parseInt(horizontal_pos_string);
+				int vertical_pos = Integer.parseInt(vertical_pos_string);
 				
-				
+				GetBenchmarkLoc(horizontal_pos, vertical_pos);
 			}
 			
 		});
@@ -231,6 +240,76 @@ public class BubbleSpinnerWinner {
 			if (!display.readAndDispatch ()) display.sleep ();
 		}
 		display.dispose ();
+	}
+	
+	public static void GetBenchmarkLoc(int horizontal_pos, int vertical_pos){
+		try {
+			Robot robot = new Robot();
+			BufferedImage screen_cap = new Robot().createScreenCapture(
+			           new Rectangle(Toolkit.getDefaultToolkit().getScreenSize()) );
+			
+			File file = new File("spinner.bmp");
+			BufferedImage croppedImage = ImageIO.read(file);
+			BufferedImage referenceImage = ImageIO.read(file);
+			int min_coord_x = 0;
+			int min_coord_y = 0;
+			int min_dif = 100000000;
+			System.out.println(-CALIBRATION_SEARCH_RADIUS);
+			for(int i = -CALIBRATION_SEARCH_RADIUS; i <= CALIBRATION_SEARCH_RADIUS; i++){
+				for(int j = -CALIBRATION_SEARCH_RADIUS; j <= CALIBRATION_SEARCH_RADIUS; j++){
+					GetScreenCapCrop(screen_cap, croppedImage, horizontal_pos + i, vertical_pos + j);
+					int difference = GetImageDifference(croppedImage, referenceImage);
+					if(difference < min_dif){
+						min_coord_x = horizontal_pos + i;
+						min_coord_y = vertical_pos + j;
+						min_dif = difference;
+					}
+					System.out.println((horizontal_pos+i) + " " + (vertical_pos+j) + " " + difference);
+				}
+			}
+			System.out.println("Min: " + min_coord_x + " " + min_coord_y );
+			GetScreenCapCrop(screen_cap, croppedImage, min_coord_x, min_coord_y);
+			
+			/*
+			for(int i = 0 ; i < croppedImage.getWidth(); i++){
+				for(int j = 0; j < 50; j++){
+					if(Math.abs(croppedImage.getRGB(i, j) - referenceImage.getRGB(i, j)) != 0){
+						croppedImage.setRGB(i, j, 0);
+					}
+				}
+			}*/
+			
+			ImageIO.write(croppedImage, "bmp" , new File ("croppedScreen.bmp"));
+			search_image = croppedImage;
+			bench_x = min_coord_x;
+			bench_y = min_coord_y;
+			
+		} catch (AWTException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		} catch (IOException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
+	}
+	
+	public static void GetScreenCapCrop(BufferedImage input, BufferedImage output, int horizontal_pos, int vertical_pos){
+		for(int i = 0; i < output.getWidth(); i++){
+			for(int j = 0; j < output.getHeight(); j++){
+				output.setRGB(i, j, input.getRGB(i+horizontal_pos, j+vertical_pos));
+			}
+		}
+	}
+	
+	public static int GetImageDifference(BufferedImage input1, BufferedImage input2){
+		int total_dif = 0;
+		for(int i = 0 ; i < input1.getWidth(); i++){
+			for(int j = 0; j < 50; j++){
+				if(Math.abs(input1.getRGB(i, j) - input2.getRGB(i, j)) != 0)
+					total_dif ++; 
+			}
+		}
+		return total_dif;
 	}
 	
 	public static void FireBubbleHit(BufferedImage image, int startx, int starty, int targetx, int targety, int left_bound, int right_bound, int bottom_bound){
