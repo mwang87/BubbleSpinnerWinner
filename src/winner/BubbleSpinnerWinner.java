@@ -56,8 +56,6 @@ public class BubbleSpinnerWinner {
 	public static int bench_x = 0;
 	public static int bench_y = 0;
 	
-	public static BufferedImage search_image = null;
-	
 	public static boolean DEBUG = false;
 	
 	@SuppressWarnings("unchecked")
@@ -88,10 +86,13 @@ public class BubbleSpinnerWinner {
 		
 		BufferedImage image = null;
 		BufferedImage orig_image = null;
+		BufferedImage search_image = null;
 		File file = new File("spinner.bmp");
 		try {
 			image = ImageIO.read(file);
 			orig_image = ImageIO.read(file);
+			search_image = ImageIO.read(file);
+			
 			if(!DEBUG){
 				for(int i = 0; i < image.getWidth(); i++){
 					for(int j = 0; j < image.getHeight(); j++){
@@ -242,6 +243,8 @@ public class BubbleSpinnerWinner {
 		display.dispose ();
 	}
 	
+	
+	
 	public static void GetBenchmarkLoc(int horizontal_pos, int vertical_pos){
 		try {
 			Robot robot = new Robot();
@@ -280,7 +283,6 @@ public class BubbleSpinnerWinner {
 			}*/
 			
 			ImageIO.write(croppedImage, "bmp" , new File ("croppedScreen.bmp"));
-			search_image = croppedImage;
 			bench_x = min_coord_x;
 			bench_y = min_coord_y;
 			
@@ -299,6 +301,25 @@ public class BubbleSpinnerWinner {
 				output.setRGB(i, j, input.getRGB(i+horizontal_pos, j+vertical_pos));
 			}
 		}
+	}
+	
+	public static void GetPlayScreen(BufferedImage output, int horizontal_pos, int vertical_pos){
+		try {
+			BufferedImage screen_cap = new Robot().createScreenCapture(
+			           new Rectangle(Toolkit.getDefaultToolkit().getScreenSize()) );
+			
+			for(int i = 0; i < output.getWidth(); i++){
+				for(int j = 0; j < output.getHeight(); j++){
+					output.setRGB(i, j, screen_cap.getRGB(i+horizontal_pos, j+vertical_pos));
+				}
+			}
+			
+		} catch (AWTException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
 	}
 	
 	public static int GetImageDifference(BufferedImage input1, BufferedImage input2){
