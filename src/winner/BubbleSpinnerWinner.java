@@ -49,14 +49,19 @@ public class BubbleSpinnerWinner {
 	public static final int RIGHT_SIDE_OFFSET = 491;
 	public static final int BOTTOM_SIDE_OFFSET = 531;
 	
-	public static final double BALL_RADIUS = 10d;
+	public static final int BALL_RADIUS_INT = 10;
+	public static final double BALL_RADIUS = (double)BALL_RADIUS_INT;
+	
 	
 	public static final int CALIBRATION_SEARCH_RADIUS = 4;
+	
+	public static final int SHOOTER_X = 250;
+	public static final int SHOOTER_Y = 43;
 	
 	public static int bench_x = 0;
 	public static int bench_y = 0;
 	
-	public static boolean DEBUG = false;
+	public static boolean DEBUG = true;
 	
 	@SuppressWarnings("unchecked")
 	public static void main(String[] args){
@@ -92,6 +97,8 @@ public class BubbleSpinnerWinner {
 			image = ImageIO.read(file);
 			orig_image = ImageIO.read(file);
 			search_image = ImageIO.read(file);
+			
+			GetPlayScreen(search_image, bench_x, bench_y);
 			
 			if(!DEBUG){
 				for(int i = 0; i < image.getWidth(); i++){
@@ -166,12 +173,15 @@ public class BubbleSpinnerWinner {
 		
 		
 		FindFireLocation(image, bubble_graph_sorted, shooter_coord);
-		int shooter_x = shooter_coord[0];
-		int shooter_y = shooter_coord[1];
+		int shooter_x = SHOOTER_X;
+		int shooter_y = SHOOTER_Y;
+		
+		
 		
 		RayTrace(image, shooter_x, shooter_y, 10, 300);
-		RayTrace(image, shooter_x, shooter_y, 200, 300);
-		RayTrace(image, shooter_x, shooter_y, 400, 300);
+		RayTrace(image, shooter_x, shooter_y, 500, 300);
+		//RayTrace(image, shooter_x, shooter_y, 200, 300);
+		//RayTrace(image, shooter_x, shooter_y, 400, 300);
 		
 				
 		//So now we will filter out any unconnected nodes
@@ -183,9 +193,7 @@ public class BubbleSpinnerWinner {
 			//System.out.println(node.GetNeighbors().size());
 		}
 		
-		int left_side = FindLeftBound(image);
-		int right_side = FindRightBound(image);
-		int bottom_side = FindBottomBound(image);
+		
 		try {
 			ImageIO.write( image, "bmp" , new File ( "output.bmp" ));
 		} catch (IOException e) {
@@ -338,6 +346,10 @@ public class BubbleSpinnerWinner {
 	}
 	
 	public static void RayTrace(BufferedImage image, int startx, int starty, int endx, int endy){
+		int left_side = FindLeftBound(image);
+		int right_side = FindRightBound(image);
+		int bottom_side = FindBottomBound(image);
+		
 		int delta_x = (endx - startx);
 		int delta_y = (endy - starty);
 		double angle = Math.atan2((double)(delta_y), (double)delta_x);
@@ -355,17 +367,129 @@ public class BubbleSpinnerWinner {
 		System.out.println("Right: " + right);
 		//System.out.println("Angle: " + complementary_angle);
 		//System.out.println("Hypo: "+ hypoteneus);
-		DebugPaintLine(startx, endx, starty, endy, image);
-		DebugPaintLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image);
-		DebugPaintLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image);
-		//DebugPaintLine(startx, endx, (int)(starty+hypoteneus), (int)(endy+hypoteneus), image);
-		//DebugPaintLine(startx, endx, (int)(starty-hypoteneus), (int)(endy-hypoteneus), image);
+		//DebugPaintLine(startx, endx, starty, endy, image);
+		//DebugPaintLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image);
+		//DebugPaintLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image);
+		
+		int[] intersec_location_mid = new int[2];
+		int[] intersec_location_top = new int[2];
+		int[] intersec_location_bot = new int[2];
+		
+		TraceLine(startx, endx, starty, endy, image, intersec_location_mid);
+		//System.out.println(intersec_location_mid[0] + " " + intersec_location_mid[1]);
+		TraceLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image, intersec_location_top);
+		//System.out.println(intersec_location_top[0] + " " + intersec_location_top[1]);
+		TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot);
+		//System.out.println(intersec_location_bot[0] + " " + intersec_location_bot[1]);
+
+		
+		if(HitSide(intersec_location_mid[0], intersec_location_mid[1], left_side, right_side, bottom_side)){
+			System.out.println("Hit Side");
+			//so now we want to bounce, but we have to calculate where it will hit, since the size is not zero
+			//so we can take where the center hits, and assume that is where it will actually bounce even though this breaks down in the corners
+			if(intersec_location_mid[0] == left_side){
+				delta_x = - delta_x;
+				startx = intersec_location_mid[0];
+				starty = intersec_location_mid[1];
+				endx = delta_x + startx;
+				endy = delta_y + starty;
+				angle = Math.atan2((double)(delta_y), (double)delta_x);
+				up = (Math.cos(angle)*BALL_RADIUS);
+				right = (Math.sin(angle)*BALL_RADIUS);
+				
+				TraceLine(startx, endx, starty, endy, image, intersec_location_mid);
+				TraceLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image, intersec_location_top);
+				TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot);
+				
+				System.out.println("Hit Left Side");
+			}
+			else if(intersec_location_mid[0] == right_side){
+				delta_x = - delta_x;
+				startx = intersec_location_mid[0];
+				starty = intersec_location_mid[1];
+				endx = delta_x + startx;
+				endy = delta_y + starty;
+				angle = Math.atan2((double)(delta_y), (double)delta_x);
+				up = (Math.cos(angle)*BALL_RADIUS);
+				right = (Math.sin(angle)*BALL_RADIUS);
+				
+				TraceLine(startx, endx, starty, endy, image, intersec_location_mid);
+				TraceLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image, intersec_location_top);
+				TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot);
+				
+				System.out.println("Hit Right Side");
+			}
+			else if(intersec_location_mid[1] == bottom_side){
+				delta_y = - delta_y;
+				startx = intersec_location_mid[0];
+				starty = intersec_location_mid[1];
+				endx = delta_x + startx;
+				endy = delta_y + starty;
+				angle = Math.atan2((double)(delta_y), (double)delta_x);
+				up = (Math.cos(angle)*BALL_RADIUS);
+				right = (Math.sin(angle)*BALL_RADIUS);
+				
+				TraceLine(startx, endx, starty, endy, image, intersec_location_mid);
+				TraceLine((int)(startx-right), (int)(endx-right), (int)(starty+up), (int)(endy+up), image, intersec_location_top);
+				TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot);
+				
+				System.out.println("Hit Bottom Side");
+			}
+		}
 		
 		
 		
 		
-		
-		
+	}
+	
+	public static boolean HitSide(int hit_x, int hit_y, int left_side, int right_side, int bottom_side){
+		if(hit_x == left_side || hit_x == right_side){
+			return true;
+		}
+		if(hit_y == bottom_side){
+			return true;
+		}
+		return false;
+	}
+	
+	public static void TraceLine(int startx, int endx, int starty, int endy, BufferedImage image, int [] intersec_location){
+		int delta_x = (endx - startx)*2;
+		int delta_y = (endy - starty)*2;
+		//lets take one start and end point and then walk to it
+		int abs_delta_x = Math.abs(delta_x);
+		int abs_delta_y = Math.abs(delta_y);
+		intersec_location[0] = endx;
+		intersec_location[1] = endy;
+		if(abs_delta_x > abs_delta_y){
+			//we will want to walk with x
+			double slope = (double)(delta_y)/((double)(delta_x));
+			for(int i = 0; i < abs_delta_x; i++){
+				int stepping_x = startx + i;
+				int stepping_y = starty + (int)(slope*(double)i);
+				if(image.getRGB(stepping_x, stepping_y) != -16777216 && i > 50){
+					intersec_location[0] = stepping_x;
+					intersec_location[1] = stepping_y;
+					break;
+				}
+				image.setRGB(stepping_x, stepping_y, 20000);
+				
+			}
+		}
+		else{
+			//we will want to walk with y
+			double slope = (double)(delta_x)/((double)(delta_y));
+			for(int i = 0 ; i < abs_delta_y; i++){
+				int stepping_x = startx + (int)(slope*(double)i);
+				int stepping_y = starty + i;
+				//System.out.println(stepping_x + " " + stepping_y);
+				if(image.getRGB(stepping_x, stepping_y) != -16777216 && i > 50){
+					intersec_location[0] = stepping_x;
+					intersec_location[1] = stepping_y;
+					break;
+				}
+				image.setRGB(stepping_x, stepping_y, 20000);
+			}
+		}
 	}
 	
 	public static void FilterBottomLeftComponents(BufferedImage image, int [][] connected_components){
@@ -379,7 +503,7 @@ public class BubbleSpinnerWinner {
 	}
 	
 	public static int FindBottomBound(BufferedImage image){
-		int bottom_side = BOTTOM_SIDE_OFFSET;
+		int bottom_side = BOTTOM_SIDE_OFFSET - BALL_RADIUS_INT;
 		for(int i = 0; i < image.getWidth(); i++){
 			image.setRGB(i, bottom_side, 100000);
 		}
@@ -387,7 +511,7 @@ public class BubbleSpinnerWinner {
 	}
 	
 	public static int FindRightBound(BufferedImage image){
-		int right_side = RIGHT_SIDE_OFFSET;
+		int right_side = RIGHT_SIDE_OFFSET - BALL_RADIUS_INT;
 		for(int i = 0; i < image.getHeight(); i++){
 			image.setRGB(right_side, i, 100000);
 		}
@@ -395,7 +519,7 @@ public class BubbleSpinnerWinner {
 	}
 	
 	public static int FindLeftBound(BufferedImage image){
-		int left_side = LEFT_SIDE_OFFSET;
+		int left_side = LEFT_SIDE_OFFSET + BALL_RADIUS_INT;
 		for(int i = 0; i < image.getHeight(); i++){
 			image.setRGB(left_side, i, 100000);
 		}
@@ -415,6 +539,10 @@ public class BubbleSpinnerWinner {
 		centroid_y += SHOOTER_Y_OFFSET;
 		System.out.println("Shooter: (" + centroid_x + "," + centroid_y + ")");
 		image.setRGB(centroid_x, centroid_y, 100000);
+		image.setRGB(SHOOTER_X, SHOOTER_Y, 100000);
+		//image.setRGB(SHOOTER_X, SHOOTER_Y+1, 100000);
+		//image.setRGB(SHOOTER_X, SHOOTER_Y+2, 100000);
+		//image.setRGB(SHOOTER_X, SHOOTER_Y+3, 100000);
 		centroid_coord[0] = centroid_x;
 		centroid_coord[1] = centroid_y;
 	}
