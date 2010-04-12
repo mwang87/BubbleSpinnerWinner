@@ -384,7 +384,7 @@ public class BubbleSpinnerWinner {
 		//System.out.println(intersec_location_top[0] + " " + intersec_location_top[1]);
 		TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot);
 		//System.out.println(intersec_location_bot[0] + " " + intersec_location_bot[1]);
-
+		int clear_number = 0;
 		
 		if(HitSide(intersec_location_mid[0], intersec_location_mid[1], left_side, right_side, bottom_side)){
 			System.out.println("Hit Side");
@@ -405,6 +405,10 @@ public class BubbleSpinnerWinner {
 				TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot);
 				
 				System.out.println("Hit Left Side");
+				
+				if(!HitSide(intersec_location_mid[0], intersec_location_mid[1], left_side, right_side, bottom_side)){
+					clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color);
+				}
 			}
 			else if(intersec_location_mid[0] == right_side){
 				delta_x = - delta_x;
@@ -421,6 +425,10 @@ public class BubbleSpinnerWinner {
 				TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot);
 				
 				System.out.println("Hit Right Side");
+				
+				if(!HitSide(intersec_location_mid[0], intersec_location_mid[1], left_side, right_side, bottom_side)){
+					clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color);
+				}
 			}
 			else if(intersec_location_mid[1] == bottom_side){
 				delta_y = - delta_y;
@@ -437,11 +445,16 @@ public class BubbleSpinnerWinner {
 				TraceLine((int)(startx+right), (int)(endx+right), (int)(starty-up), (int)(endy-up), image, intersec_location_bot);
 				
 				System.out.println("Hit Bottom Side");
+				
+				if(!HitSide(intersec_location_mid[0], intersec_location_mid[1], left_side, right_side, bottom_side)){
+					clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color);
+				}
 			}
 		}
 		else{
-			GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color);
+			clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color);
 		}
+		System.out.println("Actually cleared: " + clear_number);
 	}
 	
 	public static int GetNumberCleared(BufferedImage image, int hit_x, int hit_y, ArrayList<BubbleGraphNode> bubble_graph, int shooter_color){
