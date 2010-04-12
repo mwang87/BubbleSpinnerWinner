@@ -7,12 +7,14 @@ public class BubbleGraphNode {
 	int x;
 	int y;
 	int color;
+	boolean traversed;
 	
 	public BubbleGraphNode(int x, int y){
 		this.x = x;
 		this.y = y;
 		color = 0;	//need to change this later
 		neighbors = new ArrayList<BubbleGraphNode>();
+		traversed = false;
 	}
 	
 	public void AddNeighbor(BubbleGraphNode neighbor){

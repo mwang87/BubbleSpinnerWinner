@@ -63,6 +63,12 @@ public class BubbleSpinnerWinner {
 	
 	public static boolean DEBUG = true;
 	
+	public static final int BLUE = 0;
+	public static final int PINK = 0;
+	public static final int RED = 0;
+	public static final int GREEN = 0;
+	public static final int YELLOW = 0;
+	
 	@SuppressWarnings("unchecked")
 	public static void main(String[] args){
 		
@@ -163,7 +169,7 @@ public class BubbleSpinnerWinner {
 		
 		PaintCentroids(connected_components, image, connected_component_count_array, centroid_X, centroid_Y);
 		
-		ArrayList<BubbleGraphNode> bubble_graph = ConstructElementGraph(image, centroid_X, centroid_Y);
+		ArrayList<BubbleGraphNode> bubble_graph = ConstructElementGraph(image, orig_image, centroid_X, centroid_Y);
 		
 		//now we will rank in order which nodes have the least connectivity
 		ArrayList<BubbleGraphNode> bubble_graph_sorted = (ArrayList<BubbleGraphNode>) bubble_graph.clone();
@@ -177,15 +183,16 @@ public class BubbleSpinnerWinner {
 		int shooter_y = SHOOTER_Y;
 		
 		
-		
-		RayTrace(image, shooter_x, shooter_y, 10, 300);
-		RayTrace(image, shooter_x, shooter_y, 500, 300);
-		//RayTrace(image, shooter_x, shooter_y, 200, 300);
+		//RayTrace(image, shooter_x, shooter_y, 10, 300, bubble_graph_sorted);
+		//RayTrace(image, shooter_x, shooter_y, 500, 300, bubble_graph_sorted);
+		RayTrace(image, shooter_x, shooter_y, 220, 300, bubble_graph_sorted, orig_image);
 		//RayTrace(image, shooter_x, shooter_y, 400, 300);
 		
 				
 		//So now we will filter out any unconnected nodes
 		RemoveUnconnectedNodes(bubble_graph_sorted);
+		
+		
 		
 		//debug
 		System.out.println("Now we have " + bubble_graph_sorted.size() + " nodes");
@@ -199,11 +206,6 @@ public class BubbleSpinnerWinner {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
-		
-		
-		
-		
 		
 		System.out.println("Done");
 	}
@@ -250,8 +252,6 @@ public class BubbleSpinnerWinner {
 		}
 		display.dispose ();
 	}
-	
-	
 	
 	public static void GetBenchmarkLoc(int horizontal_pos, int vertical_pos){
 		try {
@@ -345,14 +345,17 @@ public class BubbleSpinnerWinner {
 		
 	}
 	
-	public static void RayTrace(BufferedImage image, int startx, int starty, int endx, int endy){
+	public static void RayTrace(BufferedImage image, int startx, int starty, int endx, int endy, ArrayList<BubbleGraphNode> bubble_graph, BufferedImage orig_image){
+		int shooter_color = orig_image.getRGB(startx+2, starty-1);
 		int left_side = FindLeftBound(image);
 		int right_side = FindRightBound(image);
 		int bottom_side = FindBottomBound(image);
 		
 		int delta_x = (endx - startx);
 		int delta_y = (endy - starty);
+		
 		double angle = Math.atan2((double)(delta_y), (double)delta_x);
+		
 		
 		double up = (Math.cos(angle)*BALL_RADIUS);
 		double right = (Math.sin(angle)*BALL_RADIUS);
@@ -436,10 +439,47 @@ public class BubbleSpinnerWinner {
 				System.out.println("Hit Bottom Side");
 			}
 		}
+		else{
+			GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color);
+		}
+	}
+	
+	public static int GetNumberCleared(BufferedImage image, int hit_x, int hit_y, ArrayList<BubbleGraphNode> bubble_graph, int shooter_color){
+		//finding the closest node
+		int min_distance = 10000000;
+		BubbleGraphNode min_node = null;
+		for(BubbleGraphNode node : bubble_graph){
+			int remote_x = node.x;
+			int remote_y = node.y;
+			int square_distance = (hit_x - remote_x)*(hit_x - remote_x) + (hit_y - remote_y)*(hit_y - remote_y);
+			if(square_distance < min_distance){
+				min_distance = square_distance;
+				min_node = node;
+			}
+		}
+		System.out.println("Hit: " + hit_x + " " + hit_y + " node centroid " +  min_node.x + " "  + min_node.y);
+		int number_connected = RecursiveSearchNumberConnected(min_node);
+		System.out.println("Number Connected: " + number_connected);
+		if(min_node.color != shooter_color){
+			System.out.println("Different Colored");
+			return 1;
+		}
+		else{
+			return number_connected+1;
+		}
 		
-		
-		
-		
+	} 
+	
+	public static int RecursiveSearchNumberConnected(BubbleGraphNode node){
+		node.traversed = true;
+		int my_color = node.color;
+		int connection_count = 1;
+		for(BubbleGraphNode neighbor_node : node.GetNeighbors()){
+			if(neighbor_node.color == my_color && neighbor_node.traversed == false){
+				connection_count += RecursiveSearchNumberConnected(neighbor_node);
+			}
+		}
+		return connection_count;
 	}
 	
 	public static boolean HitSide(int hit_x, int hit_y, int left_side, int right_side, int bottom_side){
@@ -569,12 +609,14 @@ public class BubbleSpinnerWinner {
 		return;
 	}
 
-	public static ArrayList<BubbleGraphNode> ConstructElementGraph(BufferedImage image, ArrayList<Integer> Centroid_X, ArrayList<Integer> Centroid_Y){
+	public static ArrayList<BubbleGraphNode> ConstructElementGraph(BufferedImage image, BufferedImage orig_image, ArrayList<Integer> Centroid_X, ArrayList<Integer> Centroid_Y){
 		ArrayList<Integer> Working_X = (ArrayList<Integer>) Centroid_X.clone();
 		ArrayList<Integer> Working_Y = (ArrayList<Integer>) Centroid_Y.clone();
 		ArrayList<BubbleGraphNode> cur_bubble_graph = new ArrayList<BubbleGraphNode>();
 		for(int i = 0; i < Centroid_X.size(); i++){
 			BubbleGraphNode cur_Node = new BubbleGraphNode(Centroid_X.get(i), Centroid_Y.get(i));
+			cur_Node.color = orig_image.getRGB(Centroid_X.get(i)+2, Centroid_Y.get(i)-1);
+			image.setRGB(Centroid_X.get(i)+2, Centroid_Y.get(i)-1,  orig_image.getRGB(Centroid_X.get(i)+2, Centroid_Y.get(i)-1));
 			cur_bubble_graph.add(cur_Node);
 		}
 		
@@ -620,7 +662,7 @@ public class BubbleSpinnerWinner {
 				int end_y = Math.max(cur_y, remote_y);
 				
 				
-				DebugPaintLine(cur_x, remote_x, cur_y, remote_y, image);
+				//DebugPaintLine(cur_x, remote_x, cur_y, remote_y, image);
 				
 			}
 		}
