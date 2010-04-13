@@ -10,8 +10,11 @@ public class PlayRoundThread implements Runnable{
 				return;
 			running = true;
 		}
-		
-		BubbleSpinnerWinner.PlayRound();
+		try{
+			BubbleSpinnerWinner.PlayRound();
+		}catch(Exception e){
+			e.printStackTrace();
+		}
 		
 		synchronized (running) {
 			running = false;

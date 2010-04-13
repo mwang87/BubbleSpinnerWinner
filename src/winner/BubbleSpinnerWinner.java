@@ -54,7 +54,7 @@ public class BubbleSpinnerWinner {
 	public static final int RIGHT_SIDE_OFFSET = 491;
 	public static final int BOTTOM_SIDE_OFFSET = 531;
 	
-	public static final int BALL_RADIUS_INT = 10;
+	public static final int BALL_RADIUS_INT = 11;
 	public static final double BALL_RADIUS = (double)BALL_RADIUS_INT;
 	
 	
@@ -78,6 +78,13 @@ public class BubbleSpinnerWinner {
 	public static final int RED = 0;
 	public static final int GREEN = 0;
 	public static final int YELLOW = 0;
+	
+	public static final int MAX_NEIGHBOR_HIT_LIMIT = 5;
+	public static final int MAX_GUIDE_LINE_HIT_DISTANCE = 300;
+	
+	public enum Side{
+		TOP, BUTTOM, LEFT, RIGHT
+	}
 	
 	@SuppressWarnings("unchecked")
 	public static void main(String[] args){
@@ -110,15 +117,18 @@ public class BubbleSpinnerWinner {
 		BufferedImage image = null;
 		BufferedImage orig_image = null;
 		BufferedImage search_image = null;
-		File file = new File("spinner2.bmp");
+		File file = new File("last_screen.bmp");
 		try {
 			image = ImageIO.read(file);
 			orig_image = ImageIO.read(file);
 			search_image = ImageIO.read(file);
 			
-			GetPlayScreen(search_image, bench_x, bench_y);
+			
 			
 			if(!DEBUG){
+				GetPlayScreen(search_image, bench_x, bench_y);
+				//saving for debug purposes later
+				ImageIO.write( search_image, "bmp" , new File ( "last_screen.bmp" ));
 				for(int i = 0; i < image.getWidth(); i++){
 					for(int j = 0; j < image.getHeight(); j++){
 						image.setRGB(i, j, search_image.getRGB(i,j));
@@ -145,8 +155,12 @@ public class BubbleSpinnerWinner {
 		//filter based on size
 		ConnectedComponentSizeFilter(connected_components, image, connected_component_count_array);
 		
+		DebugSave(image, "output1.bmp");
+		
 		//color stuff black according to component number
 		ColorComponentsFilter(connected_components, image);
+		
+		DebugSave(image, "output2.bmp");
 		
 		//find connected components again
 		connected_components = GetConnectedComponents(image, connected_component_count_array);
@@ -155,10 +169,10 @@ public class BubbleSpinnerWinner {
 		
 		//filter based on connected component that is entirely enclosed
 		EntirelyEnclosedFilter(connected_components, image, connected_component_count_array);
-		
+
 		//filter based on size
 		ConnectedComponentSizeFilter(connected_components, image, connected_component_count_array);
-		
+
 		//filter based on non circular objects by determining if component is a circle
 		CircleComponentFilter(connected_components, image, connected_component_count_array);
 		
@@ -167,6 +181,8 @@ public class BubbleSpinnerWinner {
 		
 		//color stuff black according to component number
 		ColorComponentsFilter(connected_components, image);
+		
+		DebugSave(image, "output6.bmp");
 		
 		//now we can create a graph from the centroids of the remaining connected components
 		connected_components = GetConnectedComponents(image, connected_component_count_array);
@@ -182,6 +198,8 @@ public class BubbleSpinnerWinner {
 		//PaintCentroids(connected_components, image, connected_component_count_array, centroid_X, centroid_Y);
 		
 		ArrayList<BubbleGraphNode> bubble_graph = ConstructElementGraph(image, orig_image, centroid_X, centroid_Y, connected_components);
+		
+		DebugSave(image, "output7.bmp");
 		
 		//now we will rank in order which nodes have the least connectivity
 		ArrayList<BubbleGraphNode> bubble_graph_sorted = (ArrayList<BubbleGraphNode>) bubble_graph.clone();
@@ -209,82 +227,126 @@ public class BubbleSpinnerWinner {
 		//int clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 220, 300, bubble_graph_sorted, orig_image, shooter_color2, 2);
 		//int clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 10, 220, bubble_graph_sorted, orig_image, shooter_color2, 3);
 		//int clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 10, 300, bubble_graph_sorted, orig_image, shooter_color2, 3);
-		int clear_number_max = 0;
-		int clear_max_height = 0;
-		int side = 0;
+		int clear_number_max_right = 0;
+		int clear_max_height_right = 0;
+		int clear_number_max_left = 0;
+		int clear_max_height_left = 0;
+		int clear_number_max_bottom = 0;
+		int clear_max_height_bottom = 0;
+		Side side;
 		for(int i = 100; i < 400; i++){
 			System.out.println("i = " + i);
 			int temp_clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 10, i, bubble_graph_sorted, orig_image, shooter_color2, 3, false);
-			if(temp_clear_number > clear_number_max){
-				clear_number_max = temp_clear_number;
-				clear_max_height = i;
-				side = 1;
+			if(temp_clear_number > clear_number_max_left){
+				clear_number_max_left = temp_clear_number;
+				clear_max_height_left = i;
+				side = Side.LEFT;
 			}
 		}
 		for(int i = 100; i < 400; i++){
 			System.out.println("i = " + i);
 			int temp_clear_number = RayTraceRecursive(image, shooter_x, shooter_y, 490, i, bubble_graph_sorted, orig_image, shooter_color2, 3, false);
-			if(temp_clear_number > clear_number_max){
-				clear_number_max = temp_clear_number;
-				clear_max_height = i;
-				side = 2;
+			if(temp_clear_number > clear_number_max_right){
+				clear_number_max_right = temp_clear_number;
+				clear_max_height_right = i;
+				side = Side.RIGHT;
 			}
 		}
 		
-		for(int i = 100; i < 300; i++){
+		for(int i = -100; i < 600; i++){
 			System.out.println("i = " + i);
 			if(i == shooter_x)
 				continue;
 			int temp_clear_number = RayTraceRecursive(image, shooter_x, shooter_y, i, 490 , bubble_graph_sorted, orig_image, shooter_color2, 1, false);
-			if(temp_clear_number > clear_number_max){
-				clear_number_max = temp_clear_number;
-				clear_max_height = i;
-				side = 3;
+			System.out.println("temp: " + temp_clear_number);
+			if(temp_clear_number > clear_number_max_bottom){
+				clear_number_max_bottom = temp_clear_number;
+				clear_max_height_bottom = i;
+				side = Side.BUTTOM;
 			}
 		}
 		
-		if(side == 1){
-			RayTraceRecursive(image, shooter_x, shooter_y, 10, clear_max_height, bubble_graph_sorted, orig_image, shooter_color2, 3, true);
+		System.out.println("Total Clear Number Max Left: " + clear_number_max_left + " Max Height: " + clear_max_height_left);
+		System.out.println("Total Clear Number Max Right: " + clear_number_max_right + " Max Height: " + clear_max_height_right);
+		System.out.println("Total Clear Number Max Bottom: " + clear_number_max_bottom + " Max Height: " + clear_max_height_bottom);
+
+		
+		//deciding which side to take
+		if(clear_number_max_bottom >= clear_number_max_right && clear_number_max_bottom >= clear_number_max_left){
+			side = Side.BUTTOM;
 		}
-		if(side == 2){
-			RayTraceRecursive(image, shooter_x, shooter_y, 490, clear_max_height, bubble_graph_sorted, orig_image, shooter_color2, 3, true);
+		else{
+			if(clear_number_max_right > clear_number_max_left){
+				side = Side.RIGHT;
+			}
+			else{
+				side = Side.LEFT;
+			}
 		}
-		if(side == 3){
-			RayTraceRecursive(image, shooter_x, shooter_y, clear_max_height, 490, bubble_graph_sorted, orig_image, shooter_color2, 2, true);
+		
+		if(side == Side.LEFT){
+			RayTraceRecursive(image, shooter_x, shooter_y, 10, clear_max_height_left, bubble_graph_sorted, orig_image, shooter_color2, 3, true);
+			System.out.println("Total Clear Number Max Left: " + clear_number_max_left + " Max Height: " + clear_max_height_left);
+		}
+		if(side == Side.RIGHT){
+			RayTraceRecursive(image, shooter_x, shooter_y, 490, clear_max_height_right, bubble_graph_sorted, orig_image, shooter_color2, 3, true);
+			System.out.println("Total Clear Number Max Right: " + clear_number_max_right + " Max Height: " + clear_max_height_right);
+		}
+		if(side == Side.BUTTOM){
+			RayTraceRecursive(image, shooter_x, shooter_y, clear_max_height_bottom, 490, bubble_graph_sorted, orig_image, shooter_color2, 2, true);
+			System.out.println("Total Clear Number Max Bottom: " + clear_number_max_bottom + " Max Height: " + clear_max_height_bottom);
 		}
 		
 		
-		System.out.println("Total Clear Number Max Left: " + clear_number_max + " Max Height: " + clear_max_height);
+		
 		//Make actual Movement
 		Robot robot;
 		try {
-			PointerInfo a = MouseInfo.getPointerInfo();
-			java.awt.Point b  = a.getLocation();
-			int orig_mouse_x = (int)b.getX();
-			int orig_mouse_y = (int)b.getY();
-			
-			robot = new Robot();
-			
-			if(side == 1){
-				robot.mouseMove(10+bench_x, clear_max_height+bench_y);
+			if(!DEBUG){
+				PointerInfo a = MouseInfo.getPointerInfo();
+				java.awt.Point b  = a.getLocation();
+				int orig_mouse_x = (int)b.getX();
+				int orig_mouse_y = (int)b.getY();
+				
+				robot = new Robot();
+				
+				if(side == Side.LEFT){
+					robot.mouseMove(10+bench_x, clear_max_height_left+bench_y);
+				}
+				if(side == Side.RIGHT){
+					robot.mouseMove(490+bench_x, clear_max_height_right+bench_y);
+				}
+				if(side == Side.BUTTOM){
+					//in the event that it is off the screen, then we will walk back to the screen
+					int delta_x = shooter_x - clear_max_height_bottom;
+					int delta_y = shooter_y - 490;
+					int new_target_x = clear_max_height_bottom;
+					int new_target_y = 490;
+					if(clear_max_height_bottom < 0){
+						double slope = ((double)delta_y)/((double)delta_x);
+						new_target_x = 5;
+						new_target_y = (int)(slope*(-delta_x));
+					}
+					if(clear_max_height_bottom > 500){
+						double slope = ((double)delta_y)/((double)delta_x);
+						new_target_x = 400;
+						new_target_y = (int)(slope*(-delta_x));
+					}
+					System.out.println("Corrected to be in screen: " + new_target_x + " " + new_target_y);
+					robot.mouseMove(new_target_x+bench_x, new_target_y+bench_y);
+				}
+				
+				
+				robot.mousePress(InputEvent.BUTTON1_MASK);
+				try {
+					Thread.sleep(200);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				robot.mouseRelease(InputEvent.BUTTON1_MASK);
+				robot.mouseMove(orig_mouse_x, orig_mouse_y);
 			}
-			if(side == 2){
-				robot.mouseMove(490+bench_x, clear_max_height+bench_y);
-			}
-			if(side == 3){
-				robot.mouseMove(clear_max_height+bench_x, 490+bench_y);
-			}
-			
-			
-			robot.mousePress(InputEvent.BUTTON1_MASK);
-			try {
-				Thread.sleep(200);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			robot.mouseRelease(InputEvent.BUTTON1_MASK);
-			robot.mouseMove(orig_mouse_x, orig_mouse_y);
 			
 		} catch (AWTException e1) {
 			// TODO Auto-generated catch block
@@ -310,6 +372,16 @@ public class BubbleSpinnerWinner {
 		System.out.println("Done");
 	}
 	
+	public static void DebugSave(BufferedImage image, String filename){
+		if(DEBUG){
+			try {
+				ImageIO.write( image, "bmp" , new File ( filename ));
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
 	public static void DrawDisplay(){
 		Display display = new Display();
 		//org.eclipse.swt.graphics.Image image = display.getSystemImage(SWT.ICON_QUESTION);
@@ -331,7 +403,7 @@ public class BubbleSpinnerWinner {
 		play_button.addListener(SWT.Selection, new Listener(){
 			@Override
 			public void handleEvent(Event e) {
-				if(bench_x == 0 && bench_y ==0){
+				if(bench_x == 0 && bench_y ==0 && !DEBUG){
 					output_label.setSize(300, 12);
 					output_label.setText("Benchmark Location First");
 				}
@@ -521,7 +593,7 @@ public class BubbleSpinnerWinner {
 				System.out.println("Hit Left Side");
 				
 				if(!HitSide(intersec_location_mid[0], intersec_location_mid[1], left_side, right_side, bottom_side)){
-					clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color);
+					clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color, intersec_location_top[0], intersec_location_top[1], intersec_location_bot[0], intersec_location_bot[1]);
 				}
 			}
 			else if(intersec_location_mid[0] == right_side){
@@ -541,7 +613,7 @@ public class BubbleSpinnerWinner {
 				System.out.println("Hit Right Side");
 				
 				if(!HitSide(intersec_location_mid[0], intersec_location_mid[1], left_side, right_side, bottom_side)){
-					clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color);
+					clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color, intersec_location_top[0], intersec_location_top[1], intersec_location_bot[0], intersec_location_bot[1]);
 				}
 			}
 			else if(intersec_location_mid[1] == bottom_side){
@@ -561,12 +633,12 @@ public class BubbleSpinnerWinner {
 				System.out.println("Hit Bottom Side");
 				
 				if(!HitSide(intersec_location_mid[0], intersec_location_mid[1], left_side, right_side, bottom_side)){
-					clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color);
+					clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color, intersec_location_top[0], intersec_location_top[1], intersec_location_bot[0], intersec_location_bot[1]);
 				}
 			}
 		}
 		else{
-			clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color);
+			clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color, intersec_location_top[0], intersec_location_top[1], intersec_location_bot[0], intersec_location_bot[1]);
 		}
 		System.out.println("Actually cleared: " + clear_number);
 	}
@@ -615,6 +687,9 @@ public class BubbleSpinnerWinner {
 				endx = delta_x + startx;
 				endy = delta_y + starty;
 				System.out.println(startx + " " + starty + " " + endx + " " + endy + " " + delta_x + " " + delta_y);
+				if(!AllHitSameSide(intersec_location_mid, intersec_location_top, intersec_location_bot, Side.LEFT)){
+					return 1;
+				}
 				clear_number = RayTraceRecursive(image, startx, starty, endx, endy, bubble_graph, orig_image, shooter_color, recursion_level-1, DRAW_OVERRIDE);
 			}
 			else if(intersec_location_mid[0] == right_side){
@@ -624,6 +699,9 @@ public class BubbleSpinnerWinner {
 				starty = intersec_location_mid[1];
 				endx = delta_x + startx;
 				endy = delta_y + starty;
+				if(!AllHitSameSide(intersec_location_mid, intersec_location_top, intersec_location_bot, Side.RIGHT)){
+					return 1;
+				}
 				clear_number = RayTraceRecursive(image, startx, starty, endx, endy, bubble_graph, orig_image, shooter_color, recursion_level-1, DRAW_OVERRIDE);
 			}
 			else if(intersec_location_mid[1] == bottom_side){
@@ -633,17 +711,50 @@ public class BubbleSpinnerWinner {
 				starty = intersec_location_mid[1];
 				endx = delta_x + startx;
 				endy = delta_y + starty;
+				if(!AllHitSameSide(intersec_location_mid, intersec_location_top, intersec_location_bot, Side.BUTTOM)){
+					return 1;
+				}
 				clear_number = RayTraceRecursive(image, startx, starty, endx, endy, bubble_graph, orig_image, shooter_color, recursion_level-1, DRAW_OVERRIDE);
 			}
 		}
 		else{
-			clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color);
+			clear_number = GetNumberCleared(image, intersec_location_mid[0], intersec_location_mid[1], bubble_graph, shooter_color, intersec_location_top[0], intersec_location_top[1], intersec_location_bot[0], intersec_location_bot[1]);
 		}
 		
 		return clear_number;
 	}
 	
-	public static int GetNumberCleared(BufferedImage image, int hit_x, int hit_y, ArrayList<BubbleGraphNode> bubble_graph, int shooter_color){
+	public static boolean AllHitSameSide(int[] intersec_location_mid, int[] intersec_location_top, int[] intersec_location_bot, Side side_enum){
+		if(side_enum == Side.BUTTOM){
+			if(intersec_location_mid[1] == intersec_location_top[1]&& intersec_location_top[1] == intersec_location_bot[1]){
+				return true;
+			}
+			else{
+				return false;
+			}
+		}
+		if(side_enum == Side.LEFT){
+			if(intersec_location_mid[0] == intersec_location_top[0]&& intersec_location_top[0] == intersec_location_bot[0]){
+				return true;
+			}
+			else{
+				return false;
+			}
+		}
+		if(side_enum == Side.RIGHT){
+			if(intersec_location_mid[0] == intersec_location_top[0]&& intersec_location_top[0] == intersec_location_bot[0]){
+				return true;
+			}
+			else{
+				return false;
+			}
+		}
+		
+		return false;
+	}
+	
+	public static int GetNumberCleared(BufferedImage image, int hit_x, int hit_y, ArrayList<BubbleGraphNode> bubble_graph,
+			int shooter_color, int hit_x_up, int hit_y_up, int hit_x_down, int hit_y_down){
 		//finding the closest node
 		int min_distance = 10000000;
 		BubbleGraphNode min_node = null;
@@ -655,11 +766,19 @@ public class BubbleSpinnerWinner {
 				min_distance = square_distance;
 				min_node = node;
 			}
+			node.traversed = false;
 		}
-		System.out.println("Hit: " + hit_x + " " + hit_y + " node centroid " +  min_node.x + " "  + min_node.y);
-		if(min_node.GetNeighbors().size() >= 6){
+		System.out.println("Hit: " + hit_x + " " + hit_y + " node centroid " +  min_node.x + " "  + min_node.y + "neighbot count: " + min_node.GetNeighbors().size());
+		if(min_node.GetNeighbors().size() >= MAX_NEIGHBOR_HIT_LIMIT){
 			return 1;
 		}
+		if((hit_x - hit_x_up)*(hit_x - hit_x_up) + (hit_y - hit_y_up)*(hit_y - hit_y_up) > MAX_GUIDE_LINE_HIT_DISTANCE){
+			return 1;
+		}
+		if((hit_x - hit_x_down)*(hit_x - hit_x_down) + (hit_y - hit_y_down)*(hit_y - hit_y_down) > MAX_GUIDE_LINE_HIT_DISTANCE){
+			return 1;
+		}
+			
 		int number_connected = RecursiveSearchNumberConnected(min_node);
 		System.out.println("Number Connected: " + number_connected);
 		if(min_node.color != shooter_color){
@@ -674,7 +793,7 @@ public class BubbleSpinnerWinner {
 	
 	public static int RecursiveSearchNumberConnected(BubbleGraphNode node){
 		node.traversed = true;
-		int my_color = node.color;
+		int my_color = node.color;//need to reset the traversed flag
 		int connection_count = 1;
 		for(BubbleGraphNode neighbor_node : node.GetNeighbors()){
 			if(neighbor_node.color == my_color && neighbor_node.traversed == false){
@@ -864,7 +983,10 @@ public class BubbleSpinnerWinner {
 				}
 			}
 			
-			
+			//filter out big things
+			if(max_freq > MAX_CONNECTED_SIZE){
+				continue;
+			}
 			
 			cur_Node.color = most_frequent_color;
 			System.out.println(cur_Node.color + " " + most_frequent_color);
@@ -1009,6 +1131,7 @@ public class BubbleSpinnerWinner {
 		int [] component_centroid_y = new int[connected_component_count+1];
 		int [] component_size_count = new int[connected_component_count+1];
 		int [] component_moments = new int[connected_component_count+1];
+
 		
 		for(int i = 0; i < image.getWidth(); i++){
 			for(int j = 0; j < image.getHeight(); j++){
