@@ -54,7 +54,7 @@ public class BubbleSpinnerWinner {
 	public static final int RIGHT_SIDE_OFFSET = 491;
 	public static final int BOTTOM_SIDE_OFFSET = 531;
 	
-	public static final int BALL_RADIUS_INT = 11;
+	public static final int BALL_RADIUS_INT = 12;
 	public static final double BALL_RADIUS = (double)BALL_RADIUS_INT;
 	
 	
